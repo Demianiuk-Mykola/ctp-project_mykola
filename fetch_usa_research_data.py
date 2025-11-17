@@ -57,16 +57,15 @@ def fetch_field_subfield_funder_data():
         print("-" * 80)
 
         try:
-            # Query works for this field with funders
+            # Query works for this field (simplified - we'll filter by grants at funder level)
             works_query = Works().filter(**{
                 'topics.field.id': field_id,
                 'authorships.institutions.country_code': 'US',
                 'from_publication_date': '1975-01-01',
-                'to_publication_date': '2025-12-31',
-                'has_grants': True  # Only works with funders
+                'to_publication_date': '2025-12-31'
             })
 
-            # Group by subfield to get subfield counts with funders
+            # Group by subfield to get subfield counts
             print(f"  Fetching subfields for {field_name}...")
             subfield_groups = works_query.group_by('topics.subfield.id').get()
 
@@ -82,13 +81,12 @@ def fetch_field_subfield_funder_data():
 
                 print(f"    Subfield: {subfield_name} ({subfield_works_count} works)")
 
-                # Now get funders for this subfield
+                # Now get funders for this subfield (grouping by grants.funder automatically filters to works with grants)
                 funder_query = Works().filter(**{
                     'topics.subfield.id': subfield_id,
                     'authorships.institutions.country_code': 'US',
                     'from_publication_date': '1975-01-01',
-                    'to_publication_date': '2025-12-31',
-                    'has_grants': True
+                    'to_publication_date': '2025-12-31'
                 })
 
                 funder_groups = funder_query.group_by('grants.funder').get()
