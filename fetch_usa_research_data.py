@@ -5,6 +5,14 @@ Earth and Planetary Sciences, Energy, Engineering, Environmental sciences,
 Materials Science, Mathematics, Physics and Astronomy
 """
 
+import sys
+import io
+
+# Set UTF-8 encoding for Windows console compatibility
+if sys.platform == 'win32':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+
 from pyalex import Works, config
 import pandas as pd
 from datetime import datetime
@@ -53,8 +61,8 @@ def fetch_field_subfield_funder_data():
             works_query = Works().filter(**{
                 'topics.field.id': field_id,
                 'authorships.institutions.country_code': 'US',
-                'publication_year': '>1974',  # >= 1975
-                'publication_year': '<2026',  # <= 2025
+                'from_publication_date': '1975-01-01',
+                'to_publication_date': '2025-12-31',
                 'has_grants': True  # Only works with funders
             })
 
@@ -78,8 +86,8 @@ def fetch_field_subfield_funder_data():
                 funder_query = Works().filter(**{
                     'topics.subfield.id': subfield_id,
                     'authorships.institutions.country_code': 'US',
-                    'publication_year': '>1974',
-                    'publication_year': '<2026',
+                    'from_publication_date': '1975-01-01',
+                    'to_publication_date': '2025-12-31',
                     'has_grants': True
                 })
 
@@ -99,8 +107,8 @@ def fetch_field_subfield_funder_data():
                         'topics.subfield.id': subfield_id,
                         'grants.funder': funder_group['key'],
                         'authorships.institutions.country_code': 'US',
-                        'publication_year': '>1974',
-                        'publication_year': '<2026'
+                        'from_publication_date': '1975-01-01',
+                        'to_publication_date': '2025-12-31'
                     })
 
                     topic_groups = topic_query.group_by('topics.id').get()
@@ -156,7 +164,7 @@ def save_data_to_csv(data):
 
     print()
     print("=" * 80)
-    print(f"✓ Saved {len(data)} records to {csv_path}")
+    print(f"[SUCCESS] Saved {len(data)} records to {csv_path}")
     print(f"  Fields: {df['field_name'].nunique()}")
     print(f"  Subfields: {df['subfield_name'].nunique()}")
     print(f"  Funders: {df['funder_name'].nunique()}")
@@ -172,9 +180,9 @@ def main():
 
     if data:
         save_data_to_csv(data)
-        print("\n✓ Data fetch complete!")
+        print("\n[SUCCESS] Data fetch complete!")
     else:
-        print("\n✗ No data was fetched. Please check the API connection.")
+        print("\n[ERROR] No data was fetched. Please check the API connection.")
 
 
 if __name__ == "__main__":
