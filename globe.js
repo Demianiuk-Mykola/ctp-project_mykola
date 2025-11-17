@@ -363,7 +363,7 @@ async function loadCountryBorders() {
 }
 
 // Create marker
-function createMarker(lat, lon, label, color = 0xff8c42) {
+function createMarker(lat, lon, label, color = 0xff1493) {
     const position = latLonToVector3(lat, lon, radius * 1.05);
     
     const markerGeometry = new THREE.SphereGeometry(0.03, 16, 16);
