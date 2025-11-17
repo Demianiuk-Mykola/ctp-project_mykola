@@ -51,8 +51,8 @@
             top: 20px;
             left: 20px;
             background: rgba(20, 20, 40, 0.9);
-            border: 1px solid #64ffda;
-            color: #64ffda;
+            border: 1px solid #ff8c42;
+            color: #ff8c42;
             padding: 10px 12px;
             border-radius: 8px;
             cursor: pointer;
@@ -68,13 +68,13 @@
         }
         
         #toggle-panel:hover {
-            background: rgba(100, 255, 218, 0.3);
+            background: rgba(255, 140, 66, 0.3);
         }
         
         #control-panel h2 {
             margin: 0 0 15px 0;
             font-size: 18px;
-            color: #64ffda;
+            color: #ff8c42;
         }
         
         .control-group {
@@ -92,7 +92,7 @@
         
         .control-group input[type="range"] {
             width: 100%;
-            accent-color: #64ffda;
+            accent-color: #ff8c42;
         }
         
         .control-group input[type="text"] {
@@ -107,7 +107,40 @@
         
         .control-group input[type="text"]:focus {
             outline: none;
-            border-color: #64ffda;
+            border-color: #ff8c42;
+        }
+
+        .control-group select {
+            width: 100%;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            color: #fff;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .control-group select:focus {
+            outline: none;
+            border-color: #ff8c42;
+        }
+
+        .control-group select option {
+            background: #1a1a2e;
+            color: #fff;
+        }
+
+        .filter-section {
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 15px;
+            margin-top: 15px;
+        }
+
+        .filter-section h3 {
+            font-size: 14px;
+            color: #ff8c42;
+            margin-bottom: 10px;
         }
         
         .button-group {
@@ -118,10 +151,10 @@
         
         button {
             padding: 8px 16px;
-            background: rgba(100, 255, 218, 0.2);
-            border: 1px solid #64ffda;
+            background: rgba(255, 140, 66, 0.2);
+            border: 1px solid #ff8c42;
             border-radius: 6px;
-            color: #64ffda;
+            color: #ff8c42;
             cursor: pointer;
             font-size: 12px;
             transition: all 0.3s;
@@ -130,7 +163,7 @@
         }
         
         button:hover {
-            background: rgba(100, 255, 218, 0.3);
+            background: rgba(255, 140, 66, 0.3);
             transform: translateY(-2px);
         }
         
@@ -139,7 +172,7 @@
         }
         
         button.active {
-            background: #64ffda;
+            background: #ff8c42;
             color: #0a0e27;
         }
         
@@ -166,7 +199,7 @@
         #info-panel h3 {
             margin: 0 0 10px 0;
             font-size: 20px;
-            color: #64ffda;
+            color: #ff8c42;
         }
         
         #info-panel p {
@@ -239,7 +272,7 @@
         #legend h4 {
             margin: 0 0 10px 0;
             font-size: 14px;
-            color: #64ffda;
+            color: #ff8c42;
         }
         
         .legend-item {
@@ -273,7 +306,7 @@
         
         .spinner {
             border: 3px solid rgba(255, 255, 255, 0.1);
-            border-top: 3px solid #64ffda;
+            border-top: 3px solid #ff8c42;
             border-radius: 50%;
             width: 40px;
             height: 40px;
@@ -310,7 +343,7 @@
         }
         
         .search-result-item:hover {
-            background: rgba(100, 255, 218, 0.1);
+            background: rgba(255, 140, 66, 0.1);
         }
         
         .search-result-item:last-child {
@@ -339,8 +372,8 @@
         <div id="search-results"></div>
         
         <div class="control-group">
-            <label>Rotation Speed: <span id="speed-value">1.0x</span></label>
-            <input type="range" id="rotation-speed" min="0" max="5" step="0.1" value="1">
+            <label>Rotation Speed: <span id="speed-value">0.1x</span></label>
+            <input type="range" id="rotation-speed" min="0" max="5" step="0.1" value="0.1">
         </div>
         
         <div class="control-group button-group">
@@ -356,6 +389,48 @@
         <div class="control-group button-group">
             <button id="toggle-glow">Glow Effect</button>
             <button id="toggle-atmosphere">Atmosphere</button>
+        </div>
+
+        <!-- Research Data Filters -->
+        <div class="filter-section">
+            <h3>📊 Research Data Filters</h3>
+
+            <div class="control-group">
+                <label>Field</label>
+                <select id="field-filter">
+                    <option value="">All Fields</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label>Subfield</label>
+                <select id="subfield-filter">
+                    <option value="">All Subfields</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label>Topic</label>
+                <select id="topic-filter">
+                    <option value="">All Topics</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label>Funder</label>
+                <select id="funder-filter">
+                    <option value="">All Funders</option>
+                </select>
+            </div>
+
+            <div class="control-group button-group">
+                <button id="apply-filters">Apply Filters</button>
+                <button id="clear-filters">Clear All</button>
+            </div>
+
+            <div class="control-group">
+                <button id="toggle-research-data">Show Research Data</button>
+            </div>
         </div>
     </div>
     
@@ -385,7 +460,7 @@
     <div id="legend">
         <h4>Legend</h4>
         <div class="legend-item">
-            <div class="legend-color" style="background: #64ffda;"></div>
+            <div class="legend-color" style="background: #ff8c42;"></div>
             <span>Markers</span>
         </div>
         <div class="legend-item">
@@ -395,6 +470,18 @@
         <div class="legend-item">
             <div class="legend-color" style="background: rgba(255,255,255,0.3);"></div>
             <span>Country Borders</span>
+        </div>
+        <div class="legend-item" id="research-legend-subfield" style="display: none;">
+            <div class="legend-color" style="background: #ffd700;"></div>
+            <span>Subfields</span>
+        </div>
+        <div class="legend-item" id="research-legend-topic" style="display: none;">
+            <div class="legend-color" style="background: #ff69b4;"></div>
+            <span>Topics</span>
+        </div>
+        <div class="legend-item" id="research-legend-funder" style="display: none;">
+            <div class="legend-color" style="background: #00ffff;"></div>
+            <span>Funders</span>
         </div>
     </div>
     
