@@ -66,7 +66,7 @@ const segments = 64;
 // Create transparent globe (ocean)
 const globeGeometry = new THREE.SphereGeometry(radius, segments, segments);
 const globeMaterial = new THREE.MeshBasicMaterial({
-    color: 0x1a3a52,
+    color: 0x4a3a2a,
     transparent: true,
     opacity: 0.6,
     wireframe: false,
