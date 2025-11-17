@@ -88,8 +88,8 @@ const atmosphereMaterial = new THREE.ShaderMaterial({
     fragmentShader: `
         varying vec3 vNormal;
         void main() {
-            float intensity = pow(0.8 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 1.5);
-            gl_FragColor = vec4(0.3, 0.6, 1.0, 1.0) * intensity * 2.0;
+            float intensity = pow(0.6 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.0);
+            gl_FragColor = vec4(0.3, 0.6, 1.0, 1.0) * intensity;
         }
     `,
     side: THREE.BackSide,
@@ -100,32 +100,6 @@ const atmosphereMaterial = new THREE.ShaderMaterial({
 const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
 atmosphere.visible = false;
 scene.add(atmosphere);
-
-// Create inner glow
-const glowGeometry = new THREE.SphereGeometry(radius * 1.05, segments, segments);
-const glowMaterial = new THREE.ShaderMaterial({
-    vertexShader: `
-        varying vec3 vNormal;
-        void main() {
-            vNormal = normalize(normalMatrix * normal);
-            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-    `,
-    fragmentShader: `
-        varying vec3 vNormal;
-        void main() {
-            float intensity = pow(0.8 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 3.0);
-            gl_FragColor = vec4(0.4, 1.0, 0.8, 1.0) * intensity;
-        }
-    `,
-    side: THREE.FrontSide,
-    blending: THREE.AdditiveBlending,
-    transparent: true,
-    depthWrite: false
-});
-const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-glow.visible = false;
-scene.add(glow);
 
 // Groups
 const countryFillsGroup = new THREE.Group();
@@ -161,7 +135,6 @@ let state = {
     rotationSpeed: 0.0001,
     showMarkers: false,
     showConnections: false,
-    showGlow: false,
     showAtmosphere: false,
     isDragging: false,
     previousMousePosition: { x: 0, y: 0 },
@@ -446,7 +419,7 @@ function onMouseMove(event) {
         const deltaX = event.clientX - state.previousMousePosition.x;
         const deltaY = event.clientY - state.previousMousePosition.y;
         
-        [globe, countryFillsGroup, bordersGroup, markersGroup, connectionsGroup, atmosphere, glow, starfield].forEach(obj => {
+        [globe, countryFillsGroup, bordersGroup, markersGroup, connectionsGroup, atmosphere, starfield].forEach(obj => {
             obj.rotation.y += deltaX * 0.01;
             obj.rotation.x += deltaY * 0.01;
         });
@@ -1050,7 +1023,7 @@ function setupControls() {
     });
     
     document.getElementById('reset-view').addEventListener('click', () => {
-        [globe, countryFillsGroup, bordersGroup, markersGroup, connectionsGroup, atmosphere, glow, starfield].forEach(obj => {
+        [globe, countryFillsGroup, bordersGroup, markersGroup, connectionsGroup, atmosphere, starfield].forEach(obj => {
             obj.rotation.set(0, 0, 0);
         });
         camera.position.z = 4;
@@ -1068,13 +1041,7 @@ function setupControls() {
         connectionsGroup.visible = state.showConnections;
         e.target.classList.toggle('active');
     });
-    
-    document.getElementById('toggle-glow').addEventListener('click', (e) => {
-        state.showGlow = !state.showGlow;
-        glow.visible = state.showGlow;
-        e.target.classList.toggle('active');
-    });
-    
+
     document.getElementById('toggle-atmosphere').addEventListener('click', (e) => {
         state.showAtmosphere = !state.showAtmosphere;
         atmosphere.visible = state.showAtmosphere;
@@ -1147,7 +1114,7 @@ function animate() {
     
     // Auto-rotate
     if (state.autoRotate && !state.isDragging) {
-        [globe, countryFillsGroup, bordersGroup, markersGroup, connectionsGroup, atmosphere, glow, starfield].forEach(obj => {
+        [globe, countryFillsGroup, bordersGroup, markersGroup, connectionsGroup, atmosphere, starfield].forEach(obj => {
             obj.rotation.y += state.rotationSpeed;
         });
     }
