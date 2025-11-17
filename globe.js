@@ -66,7 +66,7 @@ const segments = 64;
 // Create transparent globe (ocean)
 const globeGeometry = new THREE.SphereGeometry(radius, segments, segments);
 const globeMaterial = new THREE.MeshBasicMaterial({
-    color: 0x4a3a2a,
+    color: 0x1a3a52,
     transparent: true,
     opacity: 0.6,
     wireframe: false,
@@ -363,7 +363,7 @@ async function loadCountryBorders() {
 }
 
 // Create marker
-function createMarker(lat, lon, label, color = 0xff1493) {
+function createMarker(lat, lon, label, color = 0xff8c42) {
     const position = latLonToVector3(lat, lon, radius * 1.05);
     
     const markerGeometry = new THREE.SphereGeometry(0.03, 16, 16);
