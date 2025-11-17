@@ -444,7 +444,7 @@ function onMouseMove(event) {
         const deltaX = event.clientX - state.previousMousePosition.x;
         const deltaY = event.clientY - state.previousMousePosition.y;
         
-        [globe, countryFillsGroup, bordersGroup, markersGroup, connectionsGroup, atmosphere, glow].forEach(obj => {
+        [globe, countryFillsGroup, bordersGroup, markersGroup, connectionsGroup, atmosphere, glow, starfield].forEach(obj => {
             obj.rotation.y += deltaX * 0.01;
             obj.rotation.x += deltaY * 0.01;
         });
@@ -1048,7 +1048,7 @@ function setupControls() {
     });
     
     document.getElementById('reset-view').addEventListener('click', () => {
-        [globe, countryFillsGroup, bordersGroup, markersGroup, connectionsGroup, atmosphere, glow].forEach(obj => {
+        [globe, countryFillsGroup, bordersGroup, markersGroup, connectionsGroup, atmosphere, glow, starfield].forEach(obj => {
             obj.rotation.set(0, 0, 0);
         });
         camera.position.z = 4;
@@ -1145,14 +1145,10 @@ function animate() {
     
     // Auto-rotate
     if (state.autoRotate && !state.isDragging) {
-        [globe, countryFillsGroup, bordersGroup, markersGroup, connectionsGroup, atmosphere, glow].forEach(obj => {
+        [globe, countryFillsGroup, bordersGroup, markersGroup, connectionsGroup, atmosphere, glow, starfield].forEach(obj => {
             obj.rotation.y += state.rotationSpeed;
         });
     }
-    
-    // Slowly rotate starfield
-    starfield.rotation.y += 0.0001;
-    starfield.rotation.x += 0.00005;
     
     // Animate marker glow
     markers.forEach((m, i) => {
