@@ -462,12 +462,19 @@ function onMouseMove(event) {
     if (markerIntersects.length > 0) {
         const marker = markerIntersects[0].object;
         if (marker.userData.isMarker && marker.userData.label) {
-            tooltip.textContent = marker.userData.label;
+            // Show detailed info for research data markers
+            if (marker.userData.isResearchData) {
+                const type = marker.userData.type.charAt(0).toUpperCase() + marker.userData.type.slice(1);
+                const works = marker.userData.works.toLocaleString();
+                tooltip.textContent = `${marker.userData.label} (${type}: ${works} works)`;
+            } else {
+                tooltip.textContent = marker.userData.label;
+            }
             tooltip.style.display = 'block';
             tooltip.style.left = event.clientX + 10 + 'px';
             tooltip.style.top = event.clientY + 10 + 'px';
             renderer.domElement.style.cursor = 'pointer';
-            
+
             if (hoveredCountry) {
                 unhighlightCountry(hoveredCountry);
                 hoveredCountry = null;
@@ -531,7 +538,12 @@ function onMouseUp(event) {
             if (markerIntersects.length > 0) {
                 const marker = markerIntersects[0].object;
                 if (marker.userData.isMarker && marker.userData.label) {
-                    showInfo(marker.userData.label, `Lat: ${marker.userData.lat.toFixed(2)}, Lon: ${marker.userData.lon.toFixed(2)}`);
+                    // Check if it's research data marker
+                    if (marker.userData.isResearchData) {
+                        showResearchDataInfo(marker.userData);
+                    } else {
+                        showInfo(marker.userData.label, `Lat: ${marker.userData.lat.toFixed(2)}, Lon: ${marker.userData.lon.toFixed(2)}`);
+                    }
                     state.isDragging = false;
                     renderer.domElement.style.cursor = 'default';
                     return;
@@ -580,8 +592,32 @@ function showCountryInfo(data) {
     document.getElementById('country-name').textContent = data.name;
     document.getElementById('country-code').textContent = `Code: ${data.code}`;
     document.getElementById('country-region').textContent = `Region: ${data.region}`;
-    document.getElementById('country-data').textContent = 
+    document.getElementById('country-data').textContent =
         `Population: ${(data.population / 1000000).toFixed(1)}M | GDP: $${(data.gdp / 1000000000).toFixed(1)}B`;
+    infoPanel.classList.add('visible');
+}
+
+function showResearchDataInfo(userData) {
+    const typeLabel = userData.type.charAt(0).toUpperCase() + userData.type.slice(1);
+    document.getElementById('country-name').textContent = userData.label;
+    document.getElementById('country-code').textContent = `Type: ${typeLabel}`;
+
+    let details = `Works Count: ${userData.works.toLocaleString()}`;
+
+    if (userData.type === 'topic' && userData.data.field) {
+        details += ` | Field: ${userData.data.field}`;
+    }
+
+    if (userData.type === 'funder' && userData.data) {
+        const funder = userData.data;
+        details = `Funder: ${funder.funder_name}\n`;
+        details += `Subfield: ${funder.subfield_name}\n`;
+        details += `Works Count: ${funder.subfield_works_count.toLocaleString()}\n`;
+        details += `Total Funder Works: ${funder.total_works_count.toLocaleString()}`;
+    }
+
+    document.getElementById('country-region').textContent = details;
+    document.getElementById('country-data').textContent = '';
     infoPanel.classList.add('visible');
 }
 
@@ -688,6 +724,313 @@ function setupSearch() {
         }
     });
 }
+
+// ============ RESEARCH DATA API INTEGRATION ============
+
+// API Configuration
+const API_BASE_URL = 'http://localhost:5000/api';
+
+// Research data state
+let researchData = {
+    fields: [],
+    subfields: [],
+    topics: [],
+    funders: [],
+    filters: {
+        field: '',
+        subfield: '',
+        topic: '',
+        funder: ''
+    },
+    showResearchData: false,
+    markers: []
+};
+
+// API Functions
+async function fetchFields() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/fields`);
+        const data = await response.json();
+        researchData.fields = data.data || [];
+        return researchData.fields;
+    } catch (error) {
+        console.error('Error fetching fields:', error);
+        return [];
+    }
+}
+
+async function fetchSubfields() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/subfields`);
+        const data = await response.json();
+        researchData.subfields = data.data || [];
+        return researchData.subfields;
+    } catch (error) {
+        console.error('Error fetching subfields:', error);
+        return [];
+    }
+}
+
+async function fetchTopics() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/topics`);
+        const data = await response.json();
+        researchData.topics = data.data || [];
+        return researchData.topics;
+    } catch (error) {
+        console.error('Error fetching topics:', error);
+        return [];
+    }
+}
+
+async function fetchFunders() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/funders`);
+        const data = await response.json();
+        researchData.funders = data.data || [];
+        return researchData.funders;
+    } catch (error) {
+        console.error('Error fetching funders:', error);
+        return [];
+    }
+}
+
+// Populate filter dropdowns
+async function populateFilters() {
+    const [fields, subfields, topics, funders] = await Promise.all([
+        fetchFields(),
+        fetchSubfields(),
+        fetchTopics(),
+        fetchFunders()
+    ]);
+
+    // Populate field dropdown
+    const fieldSelect = document.getElementById('field-filter');
+    fields.forEach(field => {
+        const option = document.createElement('option');
+        option.value = field.id;
+        option.textContent = field.name;
+        fieldSelect.appendChild(option);
+    });
+
+    // Populate subfield dropdown
+    const subfieldSelect = document.getElementById('subfield-filter');
+    subfields.forEach(subfield => {
+        const option = document.createElement('option');
+        option.value = subfield.id;
+        option.textContent = subfield.name;
+        subfieldSelect.appendChild(option);
+    });
+
+    // Populate topic dropdown
+    const topicSelect = document.getElementById('topic-filter');
+    topics.forEach(topic => {
+        const option = document.createElement('option');
+        option.value = topic.id;
+        option.textContent = topic.name;
+        topicSelect.appendChild(option);
+    });
+
+    // Populate funder dropdown
+    const funderSelect = document.getElementById('funder-filter');
+    const uniqueFunders = new Map();
+    funders.forEach(funder => {
+        if (!uniqueFunders.has(funder.funder_id)) {
+            uniqueFunders.set(funder.funder_id, funder.funder_name);
+        }
+    });
+    uniqueFunders.forEach((name, id) => {
+        const option = document.createElement('option');
+        option.value = id;
+        option.textContent = name;
+        funderSelect.appendChild(option);
+    });
+}
+
+// Clear research data markers
+function clearResearchMarkers() {
+    researchData.markers.forEach(markerData => {
+        markersGroup.remove(markerData.marker);
+        markersGroup.remove(markerData.glow);
+    });
+    researchData.markers = [];
+    updateMarkerCount();
+}
+
+// Create research data visualization
+function visualizeResearchData() {
+    clearResearchMarkers();
+
+    if (!researchData.showResearchData) {
+        document.getElementById('research-legend-subfield').style.display = 'none';
+        document.getElementById('research-legend-topic').style.display = 'none';
+        document.getElementById('research-legend-funder').style.display = 'none';
+        return;
+    }
+
+    // Get filtered data
+    let filteredSubfields = researchData.subfields;
+    let filteredFunders = researchData.funders;
+    let filteredTopics = researchData.topics;
+
+    // Apply filters
+    if (researchData.filters.field) {
+        // Filter by field - we need to get topics that belong to this field
+        filteredTopics = filteredTopics.filter(topic =>
+            topic.field && topic.field.includes(researchData.fields.find(f => f.id == researchData.filters.field)?.name)
+        );
+    }
+
+    if (researchData.filters.subfield) {
+        filteredSubfields = filteredSubfields.filter(sf => sf.id == researchData.filters.subfield);
+        filteredFunders = filteredFunders.filter(f => f.subfield_id == researchData.filters.subfield);
+    }
+
+    if (researchData.filters.topic) {
+        filteredTopics = filteredTopics.filter(t => t.id == researchData.filters.topic);
+    }
+
+    if (researchData.filters.funder) {
+        filteredFunders = filteredFunders.filter(f => f.funder_id == researchData.filters.funder);
+    }
+
+    // Since the data is US-focused, place markers on US
+    const usLat = 39.8283;
+    const usLon = -98.5795;
+
+    // Create markers for filtered data
+    const dataToVisualize = [];
+
+    // Add subfield data
+    filteredSubfields.forEach(subfield => {
+        dataToVisualize.push({
+            type: 'subfield',
+            name: subfield.name,
+            works: subfield.us_works_count,
+            data: subfield
+        });
+    });
+
+    // Add topic data
+    filteredTopics.forEach(topic => {
+        dataToVisualize.push({
+            type: 'topic',
+            name: topic.name,
+            works: topic.us_works_count,
+            field: topic.field,
+            data: topic
+        });
+    });
+
+    // Add funder data
+    filteredFunders.forEach(funder => {
+        dataToVisualize.push({
+            type: 'funder',
+            name: `${funder.funder_name} (${funder.subfield_name})`,
+            works: funder.subfield_works_count,
+            data: funder
+        });
+    });
+
+    // Create markers with size based on work count
+    if (dataToVisualize.length > 0) {
+        const maxWorks = Math.max(...dataToVisualize.map(d => d.works));
+
+        dataToVisualize.forEach((item, index) => {
+            // Spread markers around US
+            const offsetLat = (Math.random() - 0.5) * 10;
+            const offsetLon = (Math.random() - 0.5) * 20;
+            const lat = usLat + offsetLat;
+            const lon = usLon + offsetLon;
+
+            // Size based on work count
+            const size = 0.02 + (item.works / maxWorks) * 0.08;
+
+            // Color based on type
+            let color;
+            if (item.type === 'subfield') color = 0xffd700; // Gold
+            else if (item.type === 'topic') color = 0xff69b4; // Hot pink
+            else color = 0x00ffff; // Cyan for funders
+
+            const position = latLonToVector3(lat, lon, radius * 1.05);
+
+            const markerGeometry = new THREE.SphereGeometry(size, 16, 16);
+            const markerMaterial = new THREE.MeshBasicMaterial({ color });
+            const marker = new THREE.Mesh(markerGeometry, markerMaterial);
+            marker.position.copy(position);
+
+            const glowGeometry = new THREE.SphereGeometry(size * 1.5, 16, 16);
+            const glowMaterial = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.3 });
+            const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
+            glowMesh.position.copy(position);
+
+            marker.userData = {
+                label: item.name,
+                lat,
+                lon,
+                isMarker: true,
+                isResearchData: true,
+                type: item.type,
+                works: item.works,
+                data: item.data
+            };
+            glowMesh.userData = { ...marker.userData };
+
+            markersGroup.add(marker);
+            markersGroup.add(glowMesh);
+            researchData.markers.push({ marker, glow: glowMesh, ...item });
+        });
+
+        updateMarkerCount();
+
+        // Show appropriate legend items
+        const hasSubfields = dataToVisualize.some(d => d.type === 'subfield');
+        const hasTopics = dataToVisualize.some(d => d.type === 'topic');
+        const hasFunders = dataToVisualize.some(d => d.type === 'funder');
+
+        document.getElementById('research-legend-subfield').style.display = hasSubfields ? 'flex' : 'none';
+        document.getElementById('research-legend-topic').style.display = hasTopics ? 'flex' : 'none';
+        document.getElementById('research-legend-funder').style.display = hasFunders ? 'flex' : 'none';
+    }
+}
+
+// Setup research data controls
+function setupResearchDataControls() {
+    const toggleBtn = document.getElementById('toggle-research-data');
+    const applyBtn = document.getElementById('apply-filters');
+    const clearBtn = document.getElementById('clear-filters');
+
+    // Populate filters on load
+    populateFilters();
+
+    // Toggle research data visibility
+    toggleBtn.addEventListener('click', (e) => {
+        researchData.showResearchData = !researchData.showResearchData;
+        e.target.classList.toggle('active');
+        visualizeResearchData();
+    });
+
+    // Apply filters
+    applyBtn.addEventListener('click', () => {
+        researchData.filters.field = document.getElementById('field-filter').value;
+        researchData.filters.subfield = document.getElementById('subfield-filter').value;
+        researchData.filters.topic = document.getElementById('topic-filter').value;
+        researchData.filters.funder = document.getElementById('funder-filter').value;
+        visualizeResearchData();
+    });
+
+    // Clear all filters
+    clearBtn.addEventListener('click', () => {
+        document.getElementById('field-filter').value = '';
+        document.getElementById('subfield-filter').value = '';
+        document.getElementById('topic-filter').value = '';
+        document.getElementById('funder-filter').value = '';
+        researchData.filters = { field: '', subfield: '', topic: '', funder: '' };
+        visualizeResearchData();
+    });
+}
+
+// ============ END RESEARCH DATA API INTEGRATION ============
 
 // Controls
 function setupControls() {
@@ -837,4 +1180,5 @@ scene.add(ambientLight);
 loadCountryBorders();
 setupControls();
 setupSearch();
+setupResearchDataControls();
 animate();

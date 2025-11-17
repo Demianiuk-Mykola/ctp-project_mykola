@@ -109,6 +109,39 @@
             outline: none;
             border-color: #64ffda;
         }
+
+        .control-group select {
+            width: 100%;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            color: #fff;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .control-group select:focus {
+            outline: none;
+            border-color: #64ffda;
+        }
+
+        .control-group select option {
+            background: #1a1a2e;
+            color: #fff;
+        }
+
+        .filter-section {
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 15px;
+            margin-top: 15px;
+        }
+
+        .filter-section h3 {
+            font-size: 14px;
+            color: #64ffda;
+            margin-bottom: 10px;
+        }
         
         .button-group {
             display: flex;
@@ -357,6 +390,48 @@
             <button id="toggle-glow">Glow Effect</button>
             <button id="toggle-atmosphere">Atmosphere</button>
         </div>
+
+        <!-- Research Data Filters -->
+        <div class="filter-section">
+            <h3>📊 Research Data Filters</h3>
+
+            <div class="control-group">
+                <label>Field</label>
+                <select id="field-filter">
+                    <option value="">All Fields</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label>Subfield</label>
+                <select id="subfield-filter">
+                    <option value="">All Subfields</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label>Topic</label>
+                <select id="topic-filter">
+                    <option value="">All Topics</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label>Funder</label>
+                <select id="funder-filter">
+                    <option value="">All Funders</option>
+                </select>
+            </div>
+
+            <div class="control-group button-group">
+                <button id="apply-filters">Apply Filters</button>
+                <button id="clear-filters">Clear All</button>
+            </div>
+
+            <div class="control-group">
+                <button id="toggle-research-data">Show Research Data</button>
+            </div>
+        </div>
     </div>
     
     <!-- Toggle Button (outside panel) -->
@@ -395,6 +470,18 @@
         <div class="legend-item">
             <div class="legend-color" style="background: rgba(255,255,255,0.3);"></div>
             <span>Country Borders</span>
+        </div>
+        <div class="legend-item" id="research-legend-subfield" style="display: none;">
+            <div class="legend-color" style="background: #ffd700;"></div>
+            <span>Subfields</span>
+        </div>
+        <div class="legend-item" id="research-legend-topic" style="display: none;">
+            <div class="legend-color" style="background: #ff69b4;"></div>
+            <span>Topics</span>
+        </div>
+        <div class="legend-item" id="research-legend-funder" style="display: none;">
+            <div class="legend-color" style="background: #00ffff;"></div>
+            <span>Funders</span>
         </div>
     </div>
     
