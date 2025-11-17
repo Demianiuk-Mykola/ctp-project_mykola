@@ -156,7 +156,7 @@ const borderColors = [
 // State
 let state = {
     autoRotate: true,
-    rotationSpeed: 0.001,
+    rotationSpeed: 0.0001,
     showMarkers: false,
     showConnections: false,
     showGlow: false,
@@ -363,7 +363,7 @@ async function loadCountryBorders() {
 }
 
 // Create marker
-function createMarker(lat, lon, label, color = 0x64ffda) {
+function createMarker(lat, lon, label, color = 0xff8c42) {
     const position = latLonToVector3(lat, lon, radius * 1.05);
     
     const markerGeometry = new THREE.SphereGeometry(0.03, 16, 16);
