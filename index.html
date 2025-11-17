@@ -392,43 +392,39 @@
 
         <!-- Research Data Filters -->
         <div class="filter-section">
-            <h3>📊 Research Data Filters</h3>
+            <h3>📊 Research Data Filters (USA 1975-2025)</h3>
 
             <div class="control-group">
                 <label>Field</label>
                 <select id="field-filter">
-                    <option value="">All Fields</option>
+                    <option value="">Choose Field</option>
                 </select>
             </div>
 
             <div class="control-group">
                 <label>Subfield</label>
-                <select id="subfield-filter">
-                    <option value="">All Subfields</option>
-                </select>
-            </div>
-
-            <div class="control-group">
-                <label>Topic</label>
-                <select id="topic-filter">
-                    <option value="">All Topics</option>
+                <select id="subfield-filter" disabled>
+                    <option value="">-none-</option>
                 </select>
             </div>
 
             <div class="control-group">
                 <label>Funder</label>
-                <select id="funder-filter">
-                    <option value="">All Funders</option>
+                <select id="funder-filter" disabled>
+                    <option value="">Choose Funder</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label>Topic</label>
+                <select id="topic-filter" disabled>
+                    <option value="">Choose Topic</option>
                 </select>
             </div>
 
             <div class="control-group button-group">
                 <button id="apply-filters">Apply Filters</button>
                 <button id="clear-filters">Clear All</button>
-            </div>
-
-            <div class="control-group">
-                <button id="toggle-research-data">Show Research Data</button>
             </div>
         </div>
     </div>
