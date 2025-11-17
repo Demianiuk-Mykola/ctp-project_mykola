@@ -708,117 +708,134 @@ const API_BASE_URL = 'http://localhost:5000/api';
 // Research data state
 let researchData = {
     fields: [],
-    subfields: [],
-    topics: [],
-    funders: [],
-    filters: {
-        field: '',
-        subfield: '',
-        topic: '',
-        funder: ''
-    },
+    selectedField: null,
+    selectedSubfield: null,
+    selectedFunder: null,
     showResearchData: false,
     markers: []
 };
 
-// API Functions
+// API Functions with cascading logic
 async function fetchFields() {
     try {
         const response = await fetch(`${API_BASE_URL}/fields`);
         const data = await response.json();
-        researchData.fields = data.data || [];
-        return researchData.fields;
+        return data.data || [];
     } catch (error) {
         console.error('Error fetching fields:', error);
         return [];
     }
 }
 
-async function fetchSubfields() {
+async function fetchSubfields(fieldId) {
     try {
-        const response = await fetch(`${API_BASE_URL}/subfields`);
+        const response = await fetch(`${API_BASE_URL}/subfields?field_id=${fieldId}`);
         const data = await response.json();
-        researchData.subfields = data.data || [];
-        return researchData.subfields;
+        return data.data || [];
     } catch (error) {
         console.error('Error fetching subfields:', error);
         return [];
     }
 }
 
-async function fetchTopics() {
+async function fetchFunders(subfieldId) {
     try {
-        const response = await fetch(`${API_BASE_URL}/topics`);
+        const response = await fetch(`${API_BASE_URL}/funders?subfield_id=${subfieldId}`);
         const data = await response.json();
-        researchData.topics = data.data || [];
-        return researchData.topics;
-    } catch (error) {
-        console.error('Error fetching topics:', error);
-        return [];
-    }
-}
-
-async function fetchFunders() {
-    try {
-        const response = await fetch(`${API_BASE_URL}/funders`);
-        const data = await response.json();
-        researchData.funders = data.data || [];
-        return researchData.funders;
+        return data.data || [];
     } catch (error) {
         console.error('Error fetching funders:', error);
         return [];
     }
 }
 
-// Populate filter dropdowns
-async function populateFilters() {
-    const [fields, subfields, topics, funders] = await Promise.all([
-        fetchFields(),
-        fetchSubfields(),
-        fetchTopics(),
-        fetchFunders()
-    ]);
+async function fetchTopics(funderId, subfieldId) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/topics?funder_id=${funderId}&subfield_id=${subfieldId}`);
+        const data = await response.json();
+        return data.data || [];
+    } catch (error) {
+        console.error('Error fetching topics:', error);
+        return [];
+    }
+}
 
-    // Populate field dropdown
+// Initialize field dropdown
+async function initializeFieldDropdown() {
     const fieldSelect = document.getElementById('field-filter');
+    fieldSelect.innerHTML = '<option value="">Choose Field</option>';
+
+    const fields = await fetchFields();
+    researchData.fields = fields;
+
     fields.forEach(field => {
         const option = document.createElement('option');
         option.value = field.id;
         option.textContent = field.name;
         fieldSelect.appendChild(option);
     });
+}
 
-    // Populate subfield dropdown
+// Populate subfield dropdown based on selected field
+async function populateSubfieldDropdown(fieldId) {
     const subfieldSelect = document.getElementById('subfield-filter');
+    subfieldSelect.innerHTML = '<option value="">-none-</option>';
+
+    if (!fieldId) {
+        subfieldSelect.disabled = true;
+        return;
+    }
+
+    subfieldSelect.disabled = false;
+    const subfields = await fetchSubfields(fieldId);
+
     subfields.forEach(subfield => {
         const option = document.createElement('option');
         option.value = subfield.id;
-        option.textContent = subfield.name;
+        option.textContent = `${subfield.name} (${subfield.funder_count} funders)`;
         subfieldSelect.appendChild(option);
     });
+}
 
-    // Populate topic dropdown
+// Populate funder dropdown based on selected subfield
+async function populateFunderDropdown(subfieldId) {
+    const funderSelect = document.getElementById('funder-filter');
+    funderSelect.innerHTML = '<option value="">Choose Funder</option>';
+
+    if (!subfieldId) {
+        funderSelect.disabled = true;
+        return;
+    }
+
+    funderSelect.disabled = false;
+    const funders = await fetchFunders(subfieldId);
+
+    funders.forEach(funder => {
+        const option = document.createElement('option');
+        option.value = funder.id;
+        option.textContent = `${funder.name} (${funder.works_count} works)`;
+        funderSelect.appendChild(option);
+    });
+}
+
+// Populate topic dropdown based on selected funder
+async function populateTopicDropdown(funderId, subfieldId) {
     const topicSelect = document.getElementById('topic-filter');
+    topicSelect.innerHTML = '<option value="">Choose Topic</option>';
+
+    if (!funderId || !subfieldId) {
+        topicSelect.disabled = true;
+        return;
+    }
+
+    topicSelect.disabled = false;
+    const topics = await fetchTopics(funderId, subfieldId);
+
     topics.forEach(topic => {
         const option = document.createElement('option');
-        option.value = topic.id;
-        option.textContent = topic.name;
+        option.value = topic.topic_id;
+        option.textContent = `${topic.topic_name} (${topic.topic_works_count} works)`;
         topicSelect.appendChild(option);
-    });
-
-    // Populate funder dropdown
-    const funderSelect = document.getElementById('funder-filter');
-    const uniqueFunders = new Map();
-    funders.forEach(funder => {
-        if (!uniqueFunders.has(funder.funder_id)) {
-            uniqueFunders.set(funder.funder_id, funder.funder_name);
-        }
-    });
-    uniqueFunders.forEach((name, id) => {
-        const option = document.createElement('option');
-        option.value = id;
-        option.textContent = name;
-        funderSelect.appendChild(option);
     });
 }
 
@@ -832,177 +849,108 @@ function clearResearchMarkers() {
     updateMarkerCount();
 }
 
-// Create research data visualization
-function visualizeResearchData() {
-    clearResearchMarkers();
-
-    if (!researchData.showResearchData) {
-        document.getElementById('research-legend-subfield').style.display = 'none';
-        document.getElementById('research-legend-topic').style.display = 'none';
-        document.getElementById('research-legend-funder').style.display = 'none';
-        return;
-    }
-
-    // Get filtered data
-    let filteredSubfields = researchData.subfields;
-    let filteredFunders = researchData.funders;
-    let filteredTopics = researchData.topics;
-
-    // Apply filters
-    if (researchData.filters.field) {
-        // Filter by field - we need to get topics that belong to this field
-        filteredTopics = filteredTopics.filter(topic =>
-            topic.field && topic.field.includes(researchData.fields.find(f => f.id == researchData.filters.field)?.name)
-        );
-    }
-
-    if (researchData.filters.subfield) {
-        filteredSubfields = filteredSubfields.filter(sf => sf.id == researchData.filters.subfield);
-        filteredFunders = filteredFunders.filter(f => f.subfield_id == researchData.filters.subfield);
-    }
-
-    if (researchData.filters.topic) {
-        filteredTopics = filteredTopics.filter(t => t.id == researchData.filters.topic);
-    }
-
-    if (researchData.filters.funder) {
-        filteredFunders = filteredFunders.filter(f => f.funder_id == researchData.filters.funder);
-    }
-
-    // Since the data is US-focused, place markers on US
-    const usLat = 39.8283;
-    const usLon = -98.5795;
-
-    // Create markers for filtered data
-    const dataToVisualize = [];
-
-    // Add subfield data
-    filteredSubfields.forEach(subfield => {
-        dataToVisualize.push({
-            type: 'subfield',
-            name: subfield.name,
-            works: subfield.us_works_count,
-            data: subfield
-        });
-    });
-
-    // Add topic data
-    filteredTopics.forEach(topic => {
-        dataToVisualize.push({
-            type: 'topic',
-            name: topic.name,
-            works: topic.us_works_count,
-            field: topic.field,
-            data: topic
-        });
-    });
-
-    // Add funder data
-    filteredFunders.forEach(funder => {
-        dataToVisualize.push({
-            type: 'funder',
-            name: `${funder.funder_name} (${funder.subfield_name})`,
-            works: funder.subfield_works_count,
-            data: funder
-        });
-    });
-
-    // Create markers with size based on work count
-    if (dataToVisualize.length > 0) {
-        const maxWorks = Math.max(...dataToVisualize.map(d => d.works));
-
-        dataToVisualize.forEach((item, index) => {
-            // Spread markers around US
-            const offsetLat = (Math.random() - 0.5) * 10;
-            const offsetLon = (Math.random() - 0.5) * 20;
-            const lat = usLat + offsetLat;
-            const lon = usLon + offsetLon;
-
-            // Size based on work count
-            const size = 0.02 + (item.works / maxWorks) * 0.08;
-
-            // Color based on type
-            let color;
-            if (item.type === 'subfield') color = 0xffd700; // Gold
-            else if (item.type === 'topic') color = 0xff69b4; // Hot pink
-            else color = 0x00ffff; // Cyan for funders
-
-            const position = latLonToVector3(lat, lon, radius * 1.05);
-
-            const markerGeometry = new THREE.SphereGeometry(size, 16, 16);
-            const markerMaterial = new THREE.MeshBasicMaterial({ color });
-            const marker = new THREE.Mesh(markerGeometry, markerMaterial);
-            marker.position.copy(position);
-
-            const glowGeometry = new THREE.SphereGeometry(size * 1.5, 16, 16);
-            const glowMaterial = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.3 });
-            const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
-            glowMesh.position.copy(position);
-
-            marker.userData = {
-                label: item.name,
-                lat,
-                lon,
-                isMarker: true,
-                isResearchData: true,
-                type: item.type,
-                works: item.works,
-                data: item.data
-            };
-            glowMesh.userData = { ...marker.userData };
-
-            markersGroup.add(marker);
-            markersGroup.add(glowMesh);
-            researchData.markers.push({ marker, glow: glowMesh, ...item });
-        });
-
-        updateMarkerCount();
-
-        // Show appropriate legend items
-        const hasSubfields = dataToVisualize.some(d => d.type === 'subfield');
-        const hasTopics = dataToVisualize.some(d => d.type === 'topic');
-        const hasFunders = dataToVisualize.some(d => d.type === 'funder');
-
-        document.getElementById('research-legend-subfield').style.display = hasSubfields ? 'flex' : 'none';
-        document.getElementById('research-legend-topic').style.display = hasTopics ? 'flex' : 'none';
-        document.getElementById('research-legend-funder').style.display = hasFunders ? 'flex' : 'none';
-    }
-}
-
-// Setup research data controls
+// Setup research data controls with cascading filters
 function setupResearchDataControls() {
-    const toggleBtn = document.getElementById('toggle-research-data');
+    const fieldSelect = document.getElementById('field-filter');
+    const subfieldSelect = document.getElementById('subfield-filter');
+    const funderSelect = document.getElementById('funder-filter');
+    const topicSelect = document.getElementById('topic-filter');
+
+    // Initialize
+    initializeFieldDropdown();
+
+    // Set initial states
+    subfieldSelect.innerHTML = '<option value="">-none-</option>';
+    subfieldSelect.disabled = true;
+    funderSelect.innerHTML = '<option value="">Choose Funder</option>';
+    funderSelect.disabled = true;
+    topicSelect.innerHTML = '<option value="">Choose Topic</option>';
+    topicSelect.disabled = true;
+
+    // Field change event
+    fieldSelect.addEventListener('change', async (e) => {
+        const fieldId = e.target.value;
+        researchData.selectedField = fieldId;
+
+        // Reset downstream selections
+        researchData.selectedSubfield = null;
+        researchData.selectedFunder = null;
+        funderSelect.innerHTML = '<option value="">Choose Funder</option>';
+        funderSelect.disabled = true;
+        topicSelect.innerHTML = '<option value="">Choose Topic</option>';
+        topicSelect.disabled = true;
+
+        if (fieldId) {
+            await populateSubfieldDropdown(fieldId);
+        } else {
+            subfieldSelect.innerHTML = '<option value="">-none-</option>';
+            subfieldSelect.disabled = true;
+        }
+    });
+
+    // Subfield change event
+    subfieldSelect.addEventListener('change', async (e) => {
+        const subfieldId = e.target.value;
+        researchData.selectedSubfield = subfieldId;
+
+        // Reset downstream selections
+        researchData.selectedFunder = null;
+        topicSelect.innerHTML = '<option value="">Choose Topic</option>';
+        topicSelect.disabled = true;
+
+        if (subfieldId) {
+            await populateFunderDropdown(subfieldId);
+        } else {
+            funderSelect.innerHTML = '<option value="">Choose Funder</option>';
+            funderSelect.disabled = true;
+        }
+    });
+
+    // Funder change event
+    funderSelect.addEventListener('change', async (e) => {
+        const funderId = e.target.value;
+        researchData.selectedFunder = funderId;
+
+        if (funderId && researchData.selectedSubfield) {
+            await populateTopicDropdown(funderId, researchData.selectedSubfield);
+        } else {
+            topicSelect.innerHTML = '<option value="">Choose Topic</option>';
+            topicSelect.disabled = true;
+        }
+    });
+
+    // Remove the apply/clear buttons functionality - no visualization yet
     const applyBtn = document.getElementById('apply-filters');
     const clearBtn = document.getElementById('clear-filters');
 
-    // Populate filters on load
-    populateFilters();
-
-    // Toggle research data visibility
-    toggleBtn.addEventListener('click', (e) => {
-        researchData.showResearchData = !researchData.showResearchData;
-        e.target.classList.toggle('active');
-        visualizeResearchData();
-    });
-
-    // Apply filters
     applyBtn.addEventListener('click', () => {
-        researchData.filters.field = document.getElementById('field-filter').value;
-        researchData.filters.subfield = document.getElementById('subfield-filter').value;
-        researchData.filters.topic = document.getElementById('topic-filter').value;
-        researchData.filters.funder = document.getElementById('funder-filter').value;
-        visualizeResearchData();
+        console.log('Filters applied:', {
+            field: researchData.selectedField,
+            subfield: researchData.selectedSubfield,
+            funder: researchData.selectedFunder
+        });
+        // Marker visualization will be added later
     });
 
-    // Clear all filters
     clearBtn.addEventListener('click', () => {
-        document.getElementById('field-filter').value = '';
-        document.getElementById('subfield-filter').value = '';
-        document.getElementById('topic-filter').value = '';
-        document.getElementById('funder-filter').value = '';
-        researchData.filters = { field: '', subfield: '', topic: '', funder: '' };
-        visualizeResearchData();
+        fieldSelect.value = '';
+        subfieldSelect.innerHTML = '<option value="">-none-</option>';
+        subfieldSelect.disabled = true;
+        funderSelect.innerHTML = '<option value="">Choose Funder</option>';
+        funderSelect.disabled = true;
+        topicSelect.innerHTML = '<option value="">Choose Topic</option>';
+        topicSelect.disabled = true;
+
+        researchData.selectedField = null;
+        researchData.selectedSubfield = null;
+        researchData.selectedFunder = null;
     });
+
+    // Remove toggle research data button functionality
+    const toggleBtn = document.getElementById('toggle-research-data');
+    if (toggleBtn) {
+        toggleBtn.style.display = 'none';  // Hide for now
+    }
 }
 
 // ============ END RESEARCH DATA API INTEGRATION ============
