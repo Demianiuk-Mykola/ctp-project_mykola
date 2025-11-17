@@ -779,7 +779,7 @@ async function initializeFieldDropdown() {
 // Populate subfield dropdown based on selected field
 async function populateSubfieldDropdown(fieldId) {
     const subfieldSelect = document.getElementById('subfield-filter');
-    subfieldSelect.innerHTML = '<option value="">-none-</option>';
+    subfieldSelect.innerHTML = '<option value="">Choose Subfield</option>';
 
     if (!fieldId) {
         subfieldSelect.disabled = true;
@@ -860,7 +860,7 @@ function setupResearchDataControls() {
     initializeFieldDropdown();
 
     // Set initial states
-    subfieldSelect.innerHTML = '<option value="">-none-</option>';
+    subfieldSelect.innerHTML = '<option value="">Choose Subfield</option>';
     subfieldSelect.disabled = true;
     funderSelect.innerHTML = '<option value="">Choose Funder</option>';
     funderSelect.disabled = true;
@@ -883,7 +883,7 @@ function setupResearchDataControls() {
         if (fieldId) {
             await populateSubfieldDropdown(fieldId);
         } else {
-            subfieldSelect.innerHTML = '<option value="">-none-</option>';
+            subfieldSelect.innerHTML = '<option value="">Choose Subfield</option>';
             subfieldSelect.disabled = true;
         }
     });
@@ -934,7 +934,7 @@ function setupResearchDataControls() {
 
     clearBtn.addEventListener('click', () => {
         fieldSelect.value = '';
-        subfieldSelect.innerHTML = '<option value="">-none-</option>';
+        subfieldSelect.innerHTML = '<option value="">Choose Subfield</option>';
         subfieldSelect.disabled = true;
         funderSelect.innerHTML = '<option value="">Choose Funder</option>';
         funderSelect.disabled = true;
