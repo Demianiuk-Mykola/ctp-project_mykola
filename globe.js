@@ -88,13 +88,14 @@ const atmosphereMaterial = new THREE.ShaderMaterial({
     fragmentShader: `
         varying vec3 vNormal;
         void main() {
-            float intensity = pow(0.6 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.0);
-            gl_FragColor = vec4(0.3, 0.6, 1.0, 1.0) * intensity;
+            float intensity = pow(0.8 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 1.5);
+            gl_FragColor = vec4(0.3, 0.6, 1.0, 1.0) * intensity * 2.0;
         }
     `,
     side: THREE.BackSide,
     blending: THREE.AdditiveBlending,
-    transparent: true
+    transparent: true,
+    depthWrite: false
 });
 const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
 atmosphere.visible = false;
@@ -119,7 +120,8 @@ const glowMaterial = new THREE.ShaderMaterial({
     `,
     side: THREE.FrontSide,
     blending: THREE.AdditiveBlending,
-    transparent: true
+    transparent: true,
+    depthWrite: false
 });
 const glow = new THREE.Mesh(glowGeometry, glowMaterial);
 glow.visible = false;
