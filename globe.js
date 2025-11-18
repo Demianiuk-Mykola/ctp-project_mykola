@@ -626,16 +626,25 @@ function rotateToCountry(countryId) {
     const latLon = getCountryLatLon(countryId);
     if (!latLon) return;
 
+    console.log(`Centering country at lat: ${latLon.lat.toFixed(2)}, lon: ${latLon.lon.toFixed(2)}`);
+
     // Convert lat/lon to radians
     const latRad = latLon.lat * (Math.PI / 180);
     const lonRad = latLon.lon * (Math.PI / 180);
 
-    // Calculate target rotation to bring this point to face the camera
-    // Camera is at (0, 0, +z), so we want the country at the "front" of the globe
-    // Y rotation: rotate longitude to 0 (front)
-    // X rotation: rotate latitude to 0 (equator level)
-    const targetY = -lonRad;
-    const targetX = latRad;
+    // In the latLonToVector3 function:
+    // theta = (lon + 180) * π/180, and for z to be maximum (facing camera):
+    // We need theta = π/2 (which gives z = r*sin(phi)*sin(π/2) = r*sin(phi))
+    // So: (lon + 180) * π/180 = π/2
+    // lon + 180 = 90
+    // lon = -90
+    // This means longitude -90° faces the camera by default
+
+    // To bring longitude L to face the camera, rotate Y by: -(L + 90)°
+    const targetY = -(lonRad + Math.PI / 2);
+
+    // To bring latitude L to center (equator level), rotate X by: -L
+    const targetX = -latRad;
 
     // Store current rotation as starting point
     state.startRotation = {
@@ -648,6 +657,8 @@ function rotateToCountry(countryId) {
         x: targetX,
         y: targetY
     };
+
+    console.log(`Target rotation - X: ${targetX.toFixed(2)}, Y: ${targetY.toFixed(2)}`);
 
     // Start animation
     state.isAnimating = true;
