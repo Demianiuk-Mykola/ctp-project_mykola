@@ -579,72 +579,63 @@ function unhighlightCountry(countryId) {
     });
 }
 
-// Calculate average latitude and longitude of a country
-function getCountryLatLon(countryId) {
+// Calculate 3D centroid of a country's borders
+function getCountryCentroid(countryId) {
     const countryBorders = borderLines.filter(bl => bl.country === countryId);
 
     if (countryBorders.length === 0) return null;
 
-    let sumLat = 0, sumLon = 0, count = 0;
+    let sumX = 0, sumY = 0, sumZ = 0, count = 0;
 
     countryBorders.forEach(borderLine => {
-        // Get the original points from userData if available
         const points = borderLine.originalPoints;
         if (!points) return;
 
         points.forEach(point => {
-            // Convert 3D point back to lat/lon
-            // Reverse of latLonToVector3 function
-            const r = Math.sqrt(point.x * point.x + point.y * point.y + point.z * point.z);
-
-            // y = r * cos((90 - lat) * π/180) = r * sin(lat * π/180)
-            // So: lat = arcsin(y/r) * 180/π
-            const lat = Math.asin(point.y / r) * (180 / Math.PI);
-
-            // theta = (lon + 180) * π/180
-            // x = -r * sin(phi) * cos(theta), z = r * sin(phi) * sin(theta)
-            // atan2(z, -x) gives theta
-            const theta = Math.atan2(point.z, -point.x);
-            const lon = (theta * (180 / Math.PI)) - 180;
-
-            sumLat += lat;
-            sumLon += lon;
+            sumX += point.x;
+            sumY += point.y;
+            sumZ += point.z;
             count++;
         });
     });
 
     if (count === 0) return null;
 
-    return {
-        lat: sumLat / count,
-        lon: sumLon / count
-    };
+    return new THREE.Vector3(sumX / count, sumY / count, sumZ / count);
 }
 
 // Animate globe rotation to center a country
 function rotateToCountry(countryId) {
-    const latLon = getCountryLatLon(countryId);
-    if (!latLon) return;
+    const centroid = getCountryCentroid(countryId);
+    if (!centroid) return;
 
-    console.log(`Centering country at lat: ${latLon.lat.toFixed(2)}, lon: ${latLon.lon.toFixed(2)}`);
+    // Normalize to get direction from center to country
+    const direction = centroid.clone().normalize();
 
-    // Convert lat/lon to radians
-    const latRad = latLon.lat * (Math.PI / 180);
-    const lonRad = latLon.lon * (Math.PI / 180);
+    console.log(`Country direction: x=${direction.x.toFixed(3)}, y=${direction.y.toFixed(3)}, z=${direction.z.toFixed(3)}`);
 
-    // In the latLonToVector3 function:
-    // theta = (lon + 180) * π/180, and for z to be maximum (facing camera):
-    // We need theta = π/2 (which gives z = r*sin(phi)*sin(π/2) = r*sin(phi))
-    // So: (lon + 180) * π/180 = π/2
-    // lon + 180 = 90
-    // lon = -90
-    // This means longitude -90° faces the camera by default
+    // We want this direction to point towards the camera, which is at (0, 0, 1) in local space
+    // Calculate the rotation needed
 
-    // To bring longitude L to face the camera, rotate Y by: -(L + 90)°
-    const targetY = -(lonRad + Math.PI / 2);
+    // The target direction for the country to face the camera
+    const targetDirection = new THREE.Vector3(0, 0, 1);
 
-    // To bring latitude L to center (equator level), rotate X by: -L
-    const targetX = -latRad;
+    // Calculate rotation axis and angle
+    const rotationAxis = new THREE.Vector3().crossVectors(direction, targetDirection).normalize();
+    const rotationAngle = Math.acos(direction.dot(targetDirection));
+
+    console.log(`Rotation axis: x=${rotationAxis.x.toFixed(3)}, y=${rotationAxis.y.toFixed(3)}, z=${rotationAxis.z.toFixed(3)}`);
+    console.log(`Rotation angle: ${(rotationAngle * 180 / Math.PI).toFixed(2)}°`);
+
+    // Create a quaternion for this rotation
+    const quaternion = new THREE.Quaternion().setFromAxisAngle(rotationAxis, rotationAngle);
+
+    // Apply to current rotation
+    const currentQuaternion = new THREE.Quaternion().setFromEuler(new THREE.Euler(globe.rotation.x, globe.rotation.y, globe.rotation.z));
+    const targetQuaternion = quaternion.multiply(currentQuaternion);
+
+    // Convert back to Euler angles
+    const targetEuler = new THREE.Euler().setFromQuaternion(targetQuaternion);
 
     // Store current rotation as starting point
     state.startRotation = {
@@ -654,11 +645,12 @@ function rotateToCountry(countryId) {
 
     // Set target rotation
     state.targetRotation = {
-        x: targetX,
-        y: targetY
+        x: targetEuler.x,
+        y: targetEuler.y
     };
 
-    console.log(`Target rotation - X: ${targetX.toFixed(2)}, Y: ${targetY.toFixed(2)}`);
+    console.log(`Current rotation - X: ${state.startRotation.x.toFixed(2)}, Y: ${state.startRotation.y.toFixed(2)}`);
+    console.log(`Target rotation - X: ${state.targetRotation.x.toFixed(2)}, Y: ${state.targetRotation.y.toFixed(2)}`);
 
     // Start animation
     state.isAnimating = true;
