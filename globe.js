@@ -550,11 +550,7 @@ function showCountryInfo(data) {
 }
 
 function highlightCountryHover(countryId) {
-    countryMeshes.forEach(cm => {
-        if (cm.country === countryId && cm.mesh.material.opacity < 0.3) {
-            cm.mesh.material.opacity = 0.2;
-        }
-    });
+    // Only highlight borders on hover, keep mesh invisible
     borderLines.forEach(bl => {
         if (bl.country === countryId) bl.line.material.opacity = 1.0;
     });
@@ -572,7 +568,7 @@ function unhighlightCountry(countryId) {
 }
 
 function selectCountry(countryId) {
-    // Reset previous
+    // Reset previous selection
     if (selectedCountry) {
         countryMeshes.forEach(cm => {
             if (cm.country === selectedCountry) cm.mesh.material.opacity = 0.0;
@@ -585,13 +581,15 @@ function selectCountry(countryId) {
         });
     }
 
-    // Highlight selected
+    // Highlight selected country - only borders, no fill
+    // Keep mesh invisible to avoid showing triangulation edges
     countryMeshes.forEach(cm => {
         if (cm.country === countryId) {
-            cm.mesh.material.opacity = 0.4;
-            cm.mesh.material.color.setHex(0xffffff);
+            cm.mesh.material.opacity = 0.0; // Keep invisible
         }
     });
+
+    // Highlight borders in white with full opacity
     borderLines.forEach(bl => {
         if (bl.country === countryId) {
             bl.line.material.opacity = 1.0;
