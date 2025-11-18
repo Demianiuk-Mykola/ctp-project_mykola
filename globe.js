@@ -138,15 +138,7 @@ let state = {
     showAtmosphere: true,
     isDragging: false,
     previousMousePosition: { x: 0, y: 0 },
-    mouseDownPosition: { x: 0, y: 0 },
-    isAnimating: false,
-    animationStartTime: 0,
-    animationDuration: 1500, // 1.5 seconds for smooth rotation
-    pauseDuration: 2000, // 2 seconds pause
-    targetRotation: { x: 0, y: 0 },
-    startRotation: { x: 0, y: 0 },
-    pauseStartTime: 0,
-    isPaused: false
+    mouseDownPosition: { x: 0, y: 0 }
 };
 
 // FPS counter
@@ -579,96 +571,6 @@ function unhighlightCountry(countryId) {
     });
 }
 
-// Calculate 3D centroid of a country's borders
-function getCountryCentroid(countryId) {
-    const countryBorders = borderLines.filter(bl => bl.country === countryId);
-
-    if (countryBorders.length === 0) return null;
-
-    let sumX = 0, sumY = 0, sumZ = 0, count = 0;
-
-    countryBorders.forEach(borderLine => {
-        const points = borderLine.originalPoints;
-        if (!points) return;
-
-        points.forEach(point => {
-            sumX += point.x;
-            sumY += point.y;
-            sumZ += point.z;
-            count++;
-        });
-    });
-
-    if (count === 0) return null;
-
-    return new THREE.Vector3(sumX / count, sumY / count, sumZ / count);
-}
-
-// Animate globe rotation to center a country
-function rotateToCountry(countryId) {
-    const centroid = getCountryCentroid(countryId);
-    if (!centroid) return;
-
-    // Normalize to get direction from center to country (in local/globe space)
-    const localDirection = centroid.clone().normalize();
-
-    console.log(`Country local direction: x=${localDirection.x.toFixed(3)}, y=${localDirection.y.toFixed(3)}, z=${localDirection.z.toFixed(3)}`);
-
-    // Transform local direction to world space using current globe rotation
-    const currentQuaternion = new THREE.Quaternion().setFromEuler(new THREE.Euler(globe.rotation.x, globe.rotation.y, globe.rotation.z));
-    const worldDirection = localDirection.clone().applyQuaternion(currentQuaternion);
-
-    console.log(`Country world direction: x=${worldDirection.x.toFixed(3)}, y=${worldDirection.y.toFixed(3)}, z=${worldDirection.z.toFixed(3)}`);
-
-    // The target direction for the country to face the camera (in world space)
-    const targetDirection = new THREE.Vector3(0, 0, 1);
-
-    // Calculate rotation needed to go from current world direction to target direction
-    const rotationAxis = new THREE.Vector3().crossVectors(worldDirection, targetDirection);
-    const axisLength = rotationAxis.length();
-
-    if (axisLength < 0.0001) {
-        // Directions are already aligned or opposite
-        console.log('Country already facing camera or needs 180° rotation');
-        return;
-    }
-
-    rotationAxis.normalize();
-    const rotationAngle = Math.acos(Math.max(-1, Math.min(1, worldDirection.dot(targetDirection))));
-
-    console.log(`Rotation axis: x=${rotationAxis.x.toFixed(3)}, y=${rotationAxis.y.toFixed(3)}, z=${rotationAxis.z.toFixed(3)}`);
-    console.log(`Rotation angle: ${(rotationAngle * 180 / Math.PI).toFixed(2)}°`);
-
-    // Create quaternion for the rotation in world space
-    const worldRotationQuat = new THREE.Quaternion().setFromAxisAngle(rotationAxis, rotationAngle);
-
-    // Apply this rotation to the current globe rotation
-    const targetQuaternion = worldRotationQuat.multiply(currentQuaternion);
-
-    // Convert back to Euler angles
-    const targetEuler = new THREE.Euler().setFromQuaternion(targetQuaternion);
-
-    // Store current rotation as starting point
-    state.startRotation = {
-        x: globe.rotation.x,
-        y: globe.rotation.y
-    };
-
-    // Set target rotation
-    state.targetRotation = {
-        x: targetEuler.x,
-        y: targetEuler.y
-    };
-
-    console.log(`Current rotation - X: ${(state.startRotation.x * 180 / Math.PI).toFixed(2)}°, Y: ${(state.startRotation.y * 180 / Math.PI).toFixed(2)}°`);
-    console.log(`Target rotation - X: ${(state.targetRotation.x * 180 / Math.PI).toFixed(2)}°, Y: ${(state.targetRotation.y * 180 / Math.PI).toFixed(2)}°`);
-
-    // Start animation
-    state.isAnimating = true;
-    state.isPaused = false;
-    state.animationStartTime = performance.now();
-}
-
 function selectCountry(countryId) {
     // Reset previous
     if (selectedCountry) {
@@ -698,9 +600,6 @@ function selectCountry(countryId) {
     });
 
     selectedCountry = countryId;
-
-    // Rotate globe to center the selected country
-    rotateToCountry(countryId);
 }
 
 function updateMarkerCount() {
@@ -1226,11 +1125,6 @@ function updateBorderOpacity() {
     });
 }
 
-// Easing function for smooth animation
-function easeInOutCubic(t) {
-    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-}
-
 // Animation loop
 function animate() {
     requestAnimationFrame(animate);
@@ -1245,40 +1139,8 @@ function animate() {
         lastTime = currentTime;
     }
 
-    // Handle country rotation animation
-    if (state.isAnimating && !state.isDragging) {
-        const elapsed = currentTime - state.animationStartTime;
-        const progress = Math.min(elapsed / state.animationDuration, 1);
-        const easedProgress = easeInOutCubic(progress);
-
-        // Interpolate rotation
-        const currentX = state.startRotation.x + (state.targetRotation.x - state.startRotation.x) * easedProgress;
-        const currentY = state.startRotation.y + (state.targetRotation.y - state.startRotation.y) * easedProgress;
-
-        // Apply rotation to all objects
-        [globe, countryFillsGroup, bordersGroup, markersGroup, connectionsGroup, atmosphere, starfield].forEach(obj => {
-            obj.rotation.x = currentX;
-            obj.rotation.y = currentY;
-        });
-
-        // Check if animation is complete
-        if (progress >= 1) {
-            state.isAnimating = false;
-            state.isPaused = true;
-            state.pauseStartTime = currentTime;
-        }
-    }
-    // Handle pause after animation
-    else if (state.isPaused && !state.isDragging) {
-        const pauseElapsed = currentTime - state.pauseStartTime;
-
-        if (pauseElapsed >= state.pauseDuration) {
-            // Resume auto-rotation
-            state.isPaused = false;
-        }
-    }
-    // Auto-rotate (only if not animating, not paused, and not dragging)
-    else if (state.autoRotate && !state.isDragging && !state.isAnimating && !state.isPaused) {
+    // Auto-rotate
+    if (state.autoRotate && !state.isDragging) {
         [globe, countryFillsGroup, bordersGroup, markersGroup, connectionsGroup, atmosphere, starfield].forEach(obj => {
             obj.rotation.y += state.rotationSpeed;
         });
