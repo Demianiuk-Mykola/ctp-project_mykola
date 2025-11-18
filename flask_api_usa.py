@@ -45,6 +45,7 @@ def home():
             '/api/subfields?field_id=<id>': 'Get top 20 subfields for a field (by funder count)',
             '/api/funders?subfield_id=<id>': 'Get top 20 funders for a subfield',
             '/api/topics?funder_id=<id>&subfield_id=<id>': 'Get 10 most recent topics for funder',
+            '/api/research_data?field_id=<id>&subfield_id=<id>&funder_id=<id>&topic_id=<id>': 'Get filtered research data for visualization',
             '/api/reload': 'Reload data from CSV file'
         }
     })
@@ -243,6 +244,76 @@ def get_topics():
     return jsonify({
         'count': len(topics_list),
         'data': topics_list
+    })
+
+
+@app.route('/api/research_data')
+def get_research_data():
+    """Get research data based on filters (for visualization)"""
+    field_id = request.args.get('field_id')
+    subfield_id = request.args.get('subfield_id')
+    funder_id = request.args.get('funder_id')
+    topic_id = request.args.get('topic_id')
+
+    data = load_data()
+    if data is None or data.empty:
+        return jsonify({'error': 'Data not loaded'}), 500
+
+    # Start with all data
+    filtered_data = data.copy()
+
+    # Apply filters progressively
+    if field_id:
+        filtered_data = filtered_data[filtered_data['field_id'] == int(field_id)]
+
+    if subfield_id:
+        filtered_data = filtered_data[filtered_data['subfield_id'] == int(subfield_id)]
+
+    if funder_id:
+        filtered_data = filtered_data[filtered_data['funder_id'] == funder_id]
+
+    if filtered_data.empty:
+        return jsonify({'count': 0, 'data': []})
+
+    # If topic filter is provided, filter by topic
+    if topic_id:
+        topic_filtered = []
+        for _, row in filtered_data.iterrows():
+            try:
+                topics = ast.literal_eval(row['topics'])
+                if any(t['topic_id'] == topic_id for t in topics):
+                    topic_filtered.append(row)
+            except:
+                continue
+
+        if topic_filtered:
+            filtered_data = pd.DataFrame(topic_filtered)
+        else:
+            return jsonify({'count': 0, 'data': []})
+
+    # Aggregate by funder to show unique funders
+    result_data = filtered_data.groupby(['funder_id', 'funder_name', 'field_name', 'subfield_name']).agg({
+        'funder_works_count': 'first',
+        'subfield_works_count': 'first',
+        'topics': 'first'
+    }).reset_index()
+
+    # Convert to list
+    data_list = []
+    for _, row in result_data.iterrows():
+        data_list.append({
+            'funder_id': row['funder_id'],
+            'funder_name': row['funder_name'],
+            'field_name': row['field_name'],
+            'subfield_name': row['subfield_name'],
+            'funder_works_count': int(row['funder_works_count']),
+            'subfield_works_count': int(row['subfield_works_count']),
+            'topics': row['topics']
+        })
+
+    return jsonify({
+        'count': len(data_list),
+        'data': data_list
     })
 
 
