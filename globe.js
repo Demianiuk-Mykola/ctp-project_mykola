@@ -508,17 +508,12 @@ function onMouseUp(event) {
             mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
             raycaster.setFromCamera(mouse, camera);
             
-            // Check markers
+            // Check markers (they show info in tooltip, not in panel)
             const markerIntersects = raycaster.intersectObjects(markersGroup.children);
             if (markerIntersects.length > 0) {
                 const marker = markerIntersects[0].object;
                 if (marker.userData.isMarker && marker.userData.label) {
-                    // Check if it's research data marker
-                    if (marker.userData.isResearchData) {
-                        showResearchDataInfo(marker.userData);
-                    } else {
-                        showInfo(marker.userData.label, `Lat: ${marker.userData.lat.toFixed(2)}, Lon: ${marker.userData.lon.toFixed(2)}`);
-                    }
+                    // Markers show their info via tooltip on hover
                     state.isDragging = false;
                     renderer.domElement.style.cursor = 'default';
                     return;
@@ -555,41 +550,8 @@ function onMouseWheel(event) {
 }
 
 // UI Functions
-function showInfo(title, content) {
-    document.getElementById('country-name').textContent = title;
-    document.getElementById('country-code').textContent = '';
-    document.getElementById('country-region').textContent = '';
-    document.getElementById('country-data').textContent = content;
-    infoPanel.classList.add('visible');
-}
-
 function showCountryInfo(data) {
     document.getElementById('country-name').textContent = data.name;
-    document.getElementById('country-code').textContent = `Code: ${data.code}`;
-    document.getElementById('country-region').textContent = `Region: ${data.region}`;
-    document.getElementById('country-data').textContent =
-        `Population: ${(data.population / 1000000).toFixed(1)}M | GDP: $${(data.gdp / 1000000000).toFixed(1)}B`;
-    infoPanel.classList.add('visible');
-}
-
-function showResearchDataInfo(userData) {
-    const typeLabel = userData.type.charAt(0).toUpperCase() + userData.type.slice(1);
-    document.getElementById('country-name').textContent = userData.label;
-    document.getElementById('country-code').textContent = `Type: ${typeLabel}`;
-
-    let details = '';
-    let additionalInfo = '';
-
-    if (userData.type === 'funder' && userData.data) {
-        const funder = userData.data;
-        details = `Field: ${funder.field_name}\nSubfield: ${funder.subfield_name}`;
-        additionalInfo = `Funder Works: ${funder.funder_works_count.toLocaleString()} | Subfield Works: ${funder.subfield_works_count.toLocaleString()}`;
-    } else {
-        details = `Works Count: ${userData.works.toLocaleString()}`;
-    }
-
-    document.getElementById('country-region').textContent = details;
-    document.getElementById('country-data').textContent = additionalInfo;
     infoPanel.classList.add('visible');
 }
 
