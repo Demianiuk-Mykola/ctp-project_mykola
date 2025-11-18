@@ -609,30 +609,41 @@ function rotateToCountry(countryId) {
     const centroid = getCountryCentroid(countryId);
     if (!centroid) return;
 
-    // Normalize to get direction from center to country
-    const direction = centroid.clone().normalize();
+    // Normalize to get direction from center to country (in local/globe space)
+    const localDirection = centroid.clone().normalize();
 
-    console.log(`Country direction: x=${direction.x.toFixed(3)}, y=${direction.y.toFixed(3)}, z=${direction.z.toFixed(3)}`);
+    console.log(`Country local direction: x=${localDirection.x.toFixed(3)}, y=${localDirection.y.toFixed(3)}, z=${localDirection.z.toFixed(3)}`);
 
-    // We want this direction to point towards the camera, which is at (0, 0, 1) in local space
-    // Calculate the rotation needed
+    // Transform local direction to world space using current globe rotation
+    const currentQuaternion = new THREE.Quaternion().setFromEuler(new THREE.Euler(globe.rotation.x, globe.rotation.y, globe.rotation.z));
+    const worldDirection = localDirection.clone().applyQuaternion(currentQuaternion);
 
-    // The target direction for the country to face the camera
+    console.log(`Country world direction: x=${worldDirection.x.toFixed(3)}, y=${worldDirection.y.toFixed(3)}, z=${worldDirection.z.toFixed(3)}`);
+
+    // The target direction for the country to face the camera (in world space)
     const targetDirection = new THREE.Vector3(0, 0, 1);
 
-    // Calculate rotation axis and angle
-    const rotationAxis = new THREE.Vector3().crossVectors(direction, targetDirection).normalize();
-    const rotationAngle = Math.acos(direction.dot(targetDirection));
+    // Calculate rotation needed to go from current world direction to target direction
+    const rotationAxis = new THREE.Vector3().crossVectors(worldDirection, targetDirection);
+    const axisLength = rotationAxis.length();
+
+    if (axisLength < 0.0001) {
+        // Directions are already aligned or opposite
+        console.log('Country already facing camera or needs 180° rotation');
+        return;
+    }
+
+    rotationAxis.normalize();
+    const rotationAngle = Math.acos(Math.max(-1, Math.min(1, worldDirection.dot(targetDirection))));
 
     console.log(`Rotation axis: x=${rotationAxis.x.toFixed(3)}, y=${rotationAxis.y.toFixed(3)}, z=${rotationAxis.z.toFixed(3)}`);
     console.log(`Rotation angle: ${(rotationAngle * 180 / Math.PI).toFixed(2)}°`);
 
-    // Create a quaternion for this rotation
-    const quaternion = new THREE.Quaternion().setFromAxisAngle(rotationAxis, rotationAngle);
+    // Create quaternion for the rotation in world space
+    const worldRotationQuat = new THREE.Quaternion().setFromAxisAngle(rotationAxis, rotationAngle);
 
-    // Apply to current rotation
-    const currentQuaternion = new THREE.Quaternion().setFromEuler(new THREE.Euler(globe.rotation.x, globe.rotation.y, globe.rotation.z));
-    const targetQuaternion = quaternion.multiply(currentQuaternion);
+    // Apply this rotation to the current globe rotation
+    const targetQuaternion = worldRotationQuat.multiply(currentQuaternion);
 
     // Convert back to Euler angles
     const targetEuler = new THREE.Euler().setFromQuaternion(targetQuaternion);
@@ -649,8 +660,8 @@ function rotateToCountry(countryId) {
         y: targetEuler.y
     };
 
-    console.log(`Current rotation - X: ${state.startRotation.x.toFixed(2)}, Y: ${state.startRotation.y.toFixed(2)}`);
-    console.log(`Target rotation - X: ${state.targetRotation.x.toFixed(2)}, Y: ${state.targetRotation.y.toFixed(2)}`);
+    console.log(`Current rotation - X: ${(state.startRotation.x * 180 / Math.PI).toFixed(2)}°, Y: ${(state.startRotation.y * 180 / Math.PI).toFixed(2)}°`);
+    console.log(`Target rotation - X: ${(state.targetRotation.x * 180 / Math.PI).toFixed(2)}°, Y: ${(state.targetRotation.y * 180 / Math.PI).toFixed(2)}°`);
 
     // Start animation
     state.isAnimating = true;
