@@ -76,7 +76,7 @@ const globe = new THREE.Mesh(globeGeometry, globeMaterial);
 scene.add(globe);
 
 // Create atmosphere glow
-const atmosphereGeometry = new THREE.SphereGeometry(radius * 1.25, segments, segments);
+const atmosphereGeometry = new THREE.SphereGeometry(radius * 1.18, segments, segments);
 const atmosphereMaterial = new THREE.ShaderMaterial({
     vertexShader: `
         varying vec3 vNormal;
@@ -88,8 +88,8 @@ const atmosphereMaterial = new THREE.ShaderMaterial({
     fragmentShader: `
         varying vec3 vNormal;
         void main() {
-            float intensity = pow(0.85 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.0);
-            gl_FragColor = vec4(0.3, 0.6, 1.0, 1.2) * intensity;
+            float intensity = pow(0.7 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.0);
+            gl_FragColor = vec4(0.3, 0.6, 1.0, 1.0) * intensity;
         }
     `,
     side: THREE.BackSide,
