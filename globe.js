@@ -141,10 +141,12 @@ let state = {
     mouseDownPosition: { x: 0, y: 0 },
     isAnimating: false,
     animationStartTime: 0,
-    animationDuration: 1000,
-    pauseDuration: 3000,
+    animationDuration: 1500, // 1.5 seconds for smooth rotation
+    pauseDuration: 2000, // 2 seconds pause
     targetRotation: { x: 0, y: 0 },
-    startRotation: { x: 0, y: 0 }
+    startRotation: { x: 0, y: 0 },
+    pauseStartTime: 0,
+    isPaused: false
 };
 
 // FPS counter
@@ -568,13 +570,67 @@ function highlightCountryHover(countryId) {
 
 function unhighlightCountry(countryId) {
     if (selectedCountry === countryId) return;
-    
+
     countryMeshes.forEach(cm => {
         if (cm.country === countryId) cm.mesh.material.opacity = 0.0;
     });
     borderLines.forEach(bl => {
         if (bl.country === countryId) bl.line.material.opacity = bl.baseOpacity;
     });
+}
+
+// Calculate centroid of a country's borders
+function getCountryCentroid(countryId) {
+    const countryBorders = borderLines.filter(bl => bl.country === countryId);
+
+    if (countryBorders.length === 0) return null;
+
+    let sumX = 0, sumY = 0, sumZ = 0, count = 0;
+
+    countryBorders.forEach(borderLine => {
+        const positions = borderLine.line.geometry.attributes.position;
+        for (let i = 0; i < positions.count; i++) {
+            sumX += positions.getX(i);
+            sumY += positions.getY(i);
+            sumZ += positions.getZ(i);
+            count++;
+        }
+    });
+
+    if (count === 0) return null;
+
+    return new THREE.Vector3(sumX / count, sumY / count, sumZ / count);
+}
+
+// Animate globe rotation to center a country
+function rotateToCountry(countryId) {
+    const centroid = getCountryCentroid(countryId);
+    if (!centroid) return;
+
+    // Normalize centroid to get direction
+    centroid.normalize();
+
+    // Calculate target rotation angles
+    // We want the centroid to face the camera (0, 0, 1)
+    const targetY = Math.atan2(centroid.x, centroid.z);
+    const targetX = -Math.asin(centroid.y);
+
+    // Store current rotation as starting point
+    state.startRotation = {
+        x: globe.rotation.x,
+        y: globe.rotation.y
+    };
+
+    // Set target rotation
+    state.targetRotation = {
+        x: targetX,
+        y: targetY
+    };
+
+    // Start animation
+    state.isAnimating = true;
+    state.isPaused = false;
+    state.animationStartTime = performance.now();
 }
 
 function selectCountry(countryId) {
@@ -590,7 +646,7 @@ function selectCountry(countryId) {
             }
         });
     }
-    
+
     // Highlight selected
     countryMeshes.forEach(cm => {
         if (cm.country === countryId) {
@@ -604,8 +660,11 @@ function selectCountry(countryId) {
             bl.line.material.color.setHex(0xffffff);
         }
     });
-    
+
     selectedCountry = countryId;
+
+    // Rotate globe to center the selected country
+    rotateToCountry(countryId);
 }
 
 function updateMarkerCount() {
@@ -1131,10 +1190,15 @@ function updateBorderOpacity() {
     });
 }
 
+// Easing function for smooth animation
+function easeInOutCubic(t) {
+    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
 // Animation loop
 function animate() {
     requestAnimationFrame(animate);
-    
+
     // FPS counter
     frames++;
     const currentTime = performance.now();
@@ -1144,21 +1208,53 @@ function animate() {
         frames = 0;
         lastTime = currentTime;
     }
-    
-    // Auto-rotate
-    if (state.autoRotate && !state.isDragging) {
+
+    // Handle country rotation animation
+    if (state.isAnimating && !state.isDragging) {
+        const elapsed = currentTime - state.animationStartTime;
+        const progress = Math.min(elapsed / state.animationDuration, 1);
+        const easedProgress = easeInOutCubic(progress);
+
+        // Interpolate rotation
+        const currentX = state.startRotation.x + (state.targetRotation.x - state.startRotation.x) * easedProgress;
+        const currentY = state.startRotation.y + (state.targetRotation.y - state.startRotation.y) * easedProgress;
+
+        // Apply rotation to all objects
+        [globe, countryFillsGroup, bordersGroup, markersGroup, connectionsGroup, atmosphere, starfield].forEach(obj => {
+            obj.rotation.x = currentX;
+            obj.rotation.y = currentY;
+        });
+
+        // Check if animation is complete
+        if (progress >= 1) {
+            state.isAnimating = false;
+            state.isPaused = true;
+            state.pauseStartTime = currentTime;
+        }
+    }
+    // Handle pause after animation
+    else if (state.isPaused && !state.isDragging) {
+        const pauseElapsed = currentTime - state.pauseStartTime;
+
+        if (pauseElapsed >= state.pauseDuration) {
+            // Resume auto-rotation
+            state.isPaused = false;
+        }
+    }
+    // Auto-rotate (only if not animating, not paused, and not dragging)
+    else if (state.autoRotate && !state.isDragging && !state.isAnimating && !state.isPaused) {
         [globe, countryFillsGroup, bordersGroup, markersGroup, connectionsGroup, atmosphere, starfield].forEach(obj => {
             obj.rotation.y += state.rotationSpeed;
         });
     }
-    
+
     // Animate marker glow
     markers.forEach((m, i) => {
         const time = Date.now() * 0.001;
         m.glow.material.opacity = 0.3 + Math.sin(time * 2 + i) * 0.2;
         m.glow.scale.setScalar(1 + Math.sin(time * 2 + i) * 0.2);
     });
-    
+
     updateBorderOpacity();
     renderer.render(scene, camera);
 }
