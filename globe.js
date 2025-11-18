@@ -577,22 +577,19 @@ function showResearchDataInfo(userData) {
     document.getElementById('country-name').textContent = userData.label;
     document.getElementById('country-code').textContent = `Type: ${typeLabel}`;
 
-    let details = `Works Count: ${userData.works.toLocaleString()}`;
-
-    if (userData.type === 'topic' && userData.data.field) {
-        details += ` | Field: ${userData.data.field}`;
-    }
+    let details = '';
+    let additionalInfo = '';
 
     if (userData.type === 'funder' && userData.data) {
         const funder = userData.data;
-        details = `Funder: ${funder.funder_name}\n`;
-        details += `Subfield: ${funder.subfield_name}\n`;
-        details += `Works Count: ${funder.subfield_works_count.toLocaleString()}\n`;
-        details += `Total Funder Works: ${funder.total_works_count.toLocaleString()}`;
+        details = `Field: ${funder.field_name}\nSubfield: ${funder.subfield_name}`;
+        additionalInfo = `Funder Works: ${funder.funder_works_count.toLocaleString()} | Subfield Works: ${funder.subfield_works_count.toLocaleString()}`;
+    } else {
+        details = `Works Count: ${userData.works.toLocaleString()}`;
     }
 
     document.getElementById('country-region').textContent = details;
-    document.getElementById('country-data').textContent = '';
+    document.getElementById('country-data').textContent = additionalInfo;
     infoPanel.classList.add('visible');
 }
 
@@ -760,6 +757,23 @@ async function fetchTopics(funderId, subfieldId) {
     }
 }
 
+async function fetchResearchData(filters) {
+    try {
+        const params = new URLSearchParams();
+        if (filters.field_id) params.append('field_id', filters.field_id);
+        if (filters.subfield_id) params.append('subfield_id', filters.subfield_id);
+        if (filters.funder_id) params.append('funder_id', filters.funder_id);
+        if (filters.topic_id) params.append('topic_id', filters.topic_id);
+
+        const response = await fetch(`${API_BASE_URL}/research_data?${params.toString()}`);
+        const data = await response.json();
+        return data.data || [];
+    } catch (error) {
+        console.error('Error fetching research data:', error);
+        return [];
+    }
+}
+
 // Initialize field dropdown
 async function initializeFieldDropdown() {
     const fieldSelect = document.getElementById('field-filter');
@@ -839,11 +853,111 @@ async function populateTopicDropdown(funderId, subfieldId) {
     });
 }
 
+// Generate random coordinates within USA bounds
+function getRandomUSACoordinates() {
+    // USA approximate bounds
+    const latMin = 25;
+    const latMax = 50;
+    const lonMin = -125;
+    const lonMax = -65;
+
+    const lat = latMin + Math.random() * (latMax - latMin);
+    const lon = lonMin + Math.random() * (lonMax - lonMin);
+
+    return { lat, lon };
+}
+
+// Visualize research data on the globe
+async function visualizeResearchData() {
+    // Clear existing research markers first
+    clearResearchMarkers();
+
+    // Get current filter values
+    const filters = {
+        field_id: researchData.selectedField,
+        subfield_id: researchData.selectedSubfield,
+        funder_id: researchData.selectedFunder,
+        topic_id: document.getElementById('topic-filter').value
+    };
+
+    // Fetch filtered data
+    const data = await fetchResearchData(filters);
+
+    if (!data || data.length === 0) {
+        console.log('No research data to visualize');
+        return;
+    }
+
+    console.log(`Visualizing ${data.length} research data points`);
+
+    // Create markers for each funder
+    data.forEach((item, index) => {
+        const coords = getRandomUSACoordinates();
+        const color = 0xff8c42; // Orange color for research markers
+
+        const position = latLonToVector3(coords.lat, coords.lon, radius * 1.05);
+
+        // Create marker
+        const markerGeometry = new THREE.SphereGeometry(0.03, 16, 16);
+        const markerMaterial = new THREE.MeshBasicMaterial({ color });
+        const marker = new THREE.Mesh(markerGeometry, markerMaterial);
+        marker.position.copy(position);
+
+        // Create glow
+        const glowGeometry = new THREE.SphereGeometry(0.05, 16, 16);
+        const glowMaterial = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.3 });
+        const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
+        glowMesh.position.copy(position);
+
+        // Store metadata
+        marker.userData = {
+            label: item.funder_name,
+            lat: coords.lat,
+            lon: coords.lon,
+            isMarker: true,
+            isResearchData: true,
+            type: 'funder',
+            works: item.funder_works_count,
+            data: item
+        };
+
+        glowMesh.userData = {
+            label: item.funder_name,
+            lat: coords.lat,
+            lon: coords.lon,
+            isMarker: true,
+            isResearchData: true,
+            type: 'funder',
+            works: item.funder_works_count,
+            data: item
+        };
+
+        markersGroup.add(marker);
+        markersGroup.add(glowMesh);
+
+        researchData.markers.push({ marker, glow: glowMesh, data: item });
+        markers.push({ marker, glow: glowMesh, label: item.funder_name, lat: coords.lat, lon: coords.lon });
+    });
+
+    updateMarkerCount();
+
+    // Make markers visible
+    markersGroup.visible = true;
+    state.showMarkers = true;
+    document.getElementById('toggle-markers').classList.add('active');
+}
+
 // Clear research data markers
 function clearResearchMarkers() {
     researchData.markers.forEach(markerData => {
         markersGroup.remove(markerData.marker);
         markersGroup.remove(markerData.glow);
+
+        // Also remove from global markers array
+        const index = markers.findIndex(m => m.marker === markerData.marker);
+        if (index > -1) {
+            markers.splice(index, 1);
+        }
     });
     researchData.markers = [];
     updateMarkerCount();
@@ -919,17 +1033,20 @@ function setupResearchDataControls() {
         }
     });
 
-    // Remove the apply/clear buttons functionality - no visualization yet
+    // Apply and clear buttons functionality
     const applyBtn = document.getElementById('apply-filters');
     const clearBtn = document.getElementById('clear-filters');
 
-    applyBtn.addEventListener('click', () => {
+    applyBtn.addEventListener('click', async () => {
         console.log('Filters applied:', {
             field: researchData.selectedField,
             subfield: researchData.selectedSubfield,
-            funder: researchData.selectedFunder
+            funder: researchData.selectedFunder,
+            topic: topicSelect.value
         });
-        // Marker visualization will be added later
+
+        // Visualize research data with current filters
+        await visualizeResearchData();
     });
 
     clearBtn.addEventListener('click', () => {
@@ -944,6 +1061,9 @@ function setupResearchDataControls() {
         researchData.selectedField = null;
         researchData.selectedSubfield = null;
         researchData.selectedFunder = null;
+
+        // Clear research markers from globe
+        clearResearchMarkers();
     });
 
     // Remove toggle research data button functionality
