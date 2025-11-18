@@ -771,7 +771,7 @@ async function initializeFieldDropdown() {
     fields.forEach(field => {
         const option = document.createElement('option');
         option.value = field.id;
-        option.textContent = field.name;
+        option.textContent = `${field.name} (${field.total_funders} funders)`;
         fieldSelect.appendChild(option);
     });
 }
@@ -792,7 +792,7 @@ async function populateSubfieldDropdown(fieldId) {
     subfields.forEach(subfield => {
         const option = document.createElement('option');
         option.value = subfield.id;
-        option.textContent = `${subfield.name} (${subfield.funder_count} funders)`;
+        option.textContent = `${subfield.name} (${subfield.total_funders} funders)`;
         subfieldSelect.appendChild(option);
     });
 }
