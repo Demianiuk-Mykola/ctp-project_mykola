@@ -76,7 +76,7 @@ const globe = new THREE.Mesh(globeGeometry, globeMaterial);
 scene.add(globe);
 
 // Create atmosphere glow
-const atmosphereGeometry = new THREE.SphereGeometry(radius * 1.15, segments, segments);
+const atmosphereGeometry = new THREE.SphereGeometry(radius * 1.18, segments, segments);
 const atmosphereMaterial = new THREE.ShaderMaterial({
     vertexShader: `
         varying vec3 vNormal;
@@ -88,7 +88,7 @@ const atmosphereMaterial = new THREE.ShaderMaterial({
     fragmentShader: `
         varying vec3 vNormal;
         void main() {
-            float intensity = pow(0.6 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.0);
+            float intensity = pow(0.7 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.0);
             gl_FragColor = vec4(0.3, 0.6, 1.0, 1.0) * intensity;
         }
     `,
@@ -98,7 +98,7 @@ const atmosphereMaterial = new THREE.ShaderMaterial({
     depthWrite: false
 });
 const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
-atmosphere.visible = false;
+atmosphere.visible = true;
 scene.add(atmosphere);
 
 // Groups
@@ -135,7 +135,7 @@ let state = {
     rotationSpeed: 0.0001,
     showMarkers: false,
     showConnections: false,
-    showAtmosphere: false,
+    showAtmosphere: true,
     isDragging: false,
     previousMousePosition: { x: 0, y: 0 },
     mouseDownPosition: { x: 0, y: 0 },
@@ -1115,7 +1115,10 @@ function setupControls() {
         atmosphere.visible = state.showAtmosphere;
         e.target.classList.toggle('active');
     });
-    
+
+    // Set atmosphere button as active by default
+    document.getElementById('toggle-atmosphere').classList.add('active');
+
     document.getElementById('close-info').addEventListener('click', () => {
         infoPanel.classList.remove('visible');
     });
