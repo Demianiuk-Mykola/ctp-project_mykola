@@ -579,41 +579,63 @@ function unhighlightCountry(countryId) {
     });
 }
 
-// Calculate centroid of a country's borders
-function getCountryCentroid(countryId) {
+// Calculate average latitude and longitude of a country
+function getCountryLatLon(countryId) {
     const countryBorders = borderLines.filter(bl => bl.country === countryId);
 
     if (countryBorders.length === 0) return null;
 
-    let sumX = 0, sumY = 0, sumZ = 0, count = 0;
+    let sumLat = 0, sumLon = 0, count = 0;
 
     countryBorders.forEach(borderLine => {
-        const positions = borderLine.line.geometry.attributes.position;
-        for (let i = 0; i < positions.count; i++) {
-            sumX += positions.getX(i);
-            sumY += positions.getY(i);
-            sumZ += positions.getZ(i);
+        // Get the original points from userData if available
+        const points = borderLine.originalPoints;
+        if (!points) return;
+
+        points.forEach(point => {
+            // Convert 3D point back to lat/lon
+            // Reverse of latLonToVector3 function
+            const r = Math.sqrt(point.x * point.x + point.y * point.y + point.z * point.z);
+
+            // y = r * cos((90 - lat) * π/180) = r * sin(lat * π/180)
+            // So: lat = arcsin(y/r) * 180/π
+            const lat = Math.asin(point.y / r) * (180 / Math.PI);
+
+            // theta = (lon + 180) * π/180
+            // x = -r * sin(phi) * cos(theta), z = r * sin(phi) * sin(theta)
+            // atan2(z, -x) gives theta
+            const theta = Math.atan2(point.z, -point.x);
+            const lon = (theta * (180 / Math.PI)) - 180;
+
+            sumLat += lat;
+            sumLon += lon;
             count++;
-        }
+        });
     });
 
     if (count === 0) return null;
 
-    return new THREE.Vector3(sumX / count, sumY / count, sumZ / count);
+    return {
+        lat: sumLat / count,
+        lon: sumLon / count
+    };
 }
 
 // Animate globe rotation to center a country
 function rotateToCountry(countryId) {
-    const centroid = getCountryCentroid(countryId);
-    if (!centroid) return;
+    const latLon = getCountryLatLon(countryId);
+    if (!latLon) return;
 
-    // Normalize centroid to get direction
-    centroid.normalize();
+    // Convert lat/lon to radians
+    const latRad = latLon.lat * (Math.PI / 180);
+    const lonRad = latLon.lon * (Math.PI / 180);
 
-    // Calculate target rotation angles
-    // We want the centroid to face the camera (0, 0, 1)
-    const targetY = Math.atan2(centroid.x, centroid.z);
-    const targetX = -Math.asin(centroid.y);
+    // Calculate target rotation to bring this point to face the camera
+    // Camera is at (0, 0, +z), so we want the country at the "front" of the globe
+    // Y rotation: rotate longitude to 0 (front)
+    // X rotation: rotate latitude to 0 (equator level)
+    const targetY = -lonRad;
+    const targetX = latRad;
 
     // Store current rotation as starting point
     state.startRotation = {
