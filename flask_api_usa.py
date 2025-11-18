@@ -87,7 +87,8 @@ def get_fields():
     # Group by field and get unique fields with total works count
     fields = data.groupby(['field_id', 'field_name']).agg({
         'subfield_works_count': 'sum',
-        'funder_works_count': 'sum'
+        'funder_works_count': 'sum',
+        'field_total_funders': 'first'  # Get field_total_funders
     }).reset_index()
 
     fields_list = []
@@ -95,7 +96,8 @@ def get_fields():
         fields_list.append({
             'id': int(row['field_id']),
             'name': row['field_name'],
-            'total_works': int(row['subfield_works_count'])
+            'total_works': int(row['subfield_works_count']),
+            'total_funders': int(row['field_total_funders']) if 'field_total_funders' in row else 0
         })
 
     # Sort by name
@@ -128,7 +130,8 @@ def get_subfields():
     # Group by subfield and count funders
     subfields = field_data.groupby(['subfield_id', 'subfield_name']).agg({
         'funder_id': 'nunique',  # Count unique funders
-        'subfield_works_count': 'first'
+        'subfield_works_count': 'first',
+        'subfield_total_funders': 'first'  # Get subfield_total_funders
     }).reset_index()
 
     subfields = subfields.rename(columns={'funder_id': 'funder_count'})
@@ -142,7 +145,8 @@ def get_subfields():
             'id': int(row['subfield_id']),
             'name': row['subfield_name'],
             'works_count': int(row['subfield_works_count']),
-            'funder_count': int(row['funder_count'])
+            'funder_count': int(row['funder_count']),
+            'total_funders': int(row['subfield_total_funders']) if 'subfield_total_funders' in row else 0
         })
 
     return jsonify({

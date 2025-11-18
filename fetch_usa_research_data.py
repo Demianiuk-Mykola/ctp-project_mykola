@@ -57,13 +57,19 @@ def fetch_field_subfield_funder_data():
         print("-" * 80)
 
         try:
-            # Query works for this field (simplified - we'll filter by grants at funder level)
+            # Query works for this field
             works_query = Works().filter(**{
                 'topics.field.id': field_id,
                 'authorships.institutions.country_code': 'US',
                 'from_publication_date': '1975-01-01',
                 'to_publication_date': '2025-12-31'
             })
+
+            # Get total funder count for this field
+            print(f"  Fetching total funders for {field_name}...")
+            field_funder_groups = works_query.group_by('grants.funder').get()
+            field_total_funders = len(field_funder_groups) if field_funder_groups else 0
+            print(f"  Field has {field_total_funders} total funders")
 
             # Group by subfield to get subfield counts
             print(f"  Fetching subfields for {field_name}...")
@@ -81,21 +87,26 @@ def fetch_field_subfield_funder_data():
 
                 print(f"    Subfield: {subfield_name} ({subfield_works_count} works)")
 
-                # Now get funders for this subfield (grouping by grants.funder automatically filters to works with grants)
-                funder_query = Works().filter(**{
+                # Get total funder count for this subfield
+                subfield_funder_query = Works().filter(**{
                     'topics.subfield.id': subfield_id,
                     'authorships.institutions.country_code': 'US',
                     'from_publication_date': '1975-01-01',
                     'to_publication_date': '2025-12-31'
                 })
 
-                funder_groups = funder_query.group_by('grants.funder').get()
+                subfield_all_funders = subfield_funder_query.group_by('grants.funder').get()
+                subfield_total_funders = len(subfield_all_funders) if subfield_all_funders else 0
+                print(f"      Subfield has {subfield_total_funders} total funders")
+
+                # Now get top 20 funders for this subfield
+                funder_groups = subfield_all_funders[:20] if subfield_all_funders else []
 
                 if not funder_groups:
                     continue
 
                 # Process each funder
-                for funder_group in funder_groups[:20]:  # Top 20 funders per subfield
+                for funder_group in funder_groups:
                     funder_id = funder_group['key'].split('/')[-1]
                     funder_name = funder_group['key_display_name']
                     funder_works_count = funder_group['count']
@@ -127,16 +138,18 @@ def fetch_field_subfield_funder_data():
                     all_data.append({
                         'field_id': field_id,
                         'field_name': field_name,
+                        'field_total_funders': field_total_funders,
                         'subfield_id': subfield_id,
                         'subfield_name': subfield_name,
                         'subfield_works_count': subfield_works_count,
+                        'subfield_total_funders': subfield_total_funders,
                         'funder_id': funder_id,
                         'funder_name': funder_name,
                         'funder_works_count': funder_works_count,
                         'topics': str(topics_list)  # Store as string for CSV
                     })
 
-                    print(f"      Funder: {funder_name} ({funder_works_count} works, {len(topics_list)} topics)")
+                    print(f"        Funder: {funder_name} ({funder_works_count} works, {len(topics_list)} topics)")
 
                 # Rate limiting
                 time.sleep(0.5)
