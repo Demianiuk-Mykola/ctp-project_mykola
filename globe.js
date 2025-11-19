@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-// Scene setup
+// Scene setup1
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x000000);
 
